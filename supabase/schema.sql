@@ -45,6 +45,9 @@ create table if not exists public.tasks (
   assigned_to  uuid not null references public.employees(id) on delete cascade,
   ward_no      integer not null,
   status       text not null default 'PENDING' check (status in ('PENDING', 'IN_PROGRESS', 'COMPLETED')),
+  location_name text,
+  target_lat   double precision,
+  target_lng   double precision,
   created_at   timestamptz not null default now()
 );
 

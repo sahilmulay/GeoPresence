@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { getPosition, resizeBlob } from '../lib/device'
+import { getDistance, GEOFENCE_RADIUS_M } from "../lib/geo"
 import { Button, ErrorNote, Spinner } from './ui'
 
 // GPS accuracy worse than this (metres) is saved as FLAGGED for the supervisor to review.
@@ -10,7 +11,7 @@ const MAX_ACCURACY_M = 100
  * Full-screen attendance flow: live selfie -> GPS -> upload -> save.
  * type: 'CHECKIN' | 'CHECKOUT'
  */
-export default function AttendanceCapture({ type, employeeId, onClose, onDone }) {
+export default function AttendanceCapture({ type, employeeId, tasks = [], onClose, onDone }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fileRef = useRef(null)
@@ -98,6 +99,20 @@ export default function AttendanceCapture({ type, employeeId, onClose, onDone })
     setStep('saving')
     try {
       const pos = await (locState === 'error' ? getPosition() : posRef.current)
+      
+      if (type === 'CHECKIN') {
+        const geofencedTasks = tasks.filter(t => t.target_lat && t.target_lng && t.status !== 'COMPLETED')
+        if (geofencedTasks.length > 0) {
+          const isWithinAny = geofencedTasks.some(t => {
+            const dist = getDistance(pos.latitude, pos.longitude, t.target_lat, t.target_lng)
+            return dist <= GEOFENCE_RADIUS_M
+          })
+          if (!isWithinAny) {
+            throw new Error(`Geofence Error: You must be within ${GEOFENCE_RADIUS_M}m of an assigned task location.`)
+          }
+        }
+      }
+
       const blob = await resizeBlob(photo.blob)
       await api.addAttendance({
         employee_id: employeeId,

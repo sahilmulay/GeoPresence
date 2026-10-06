@@ -105,7 +105,7 @@ export const supabaseApi = {
     return data
   },
 
-  async createTask({ title, description, assigned_by, assigned_to, ward_no, status }) {
+  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng }) {
     const { error } = await supabase
       .from('tasks')
       .insert({ title, description, assigned_by, assigned_to, ward_no, status })

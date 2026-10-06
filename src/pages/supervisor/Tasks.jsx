@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
@@ -6,11 +9,32 @@ import { useWardData } from '../../lib/wardData'
 import { fmtDate } from '../../lib/format'
 import { Badge, Button, Card, Empty, ErrorNote, Field, PageLoader, SectionTitle, inputCls } from '../../components/ui'
 
+// Fix default Leaflet icon
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
+
+// Pune coordinates as default center
+const DEFAULT_CENTER = [18.5204, 73.8567]
+
+function LocationPicker({ position, setPosition }) {
+  useMapEvents({
+    click(e) {
+      setPosition([e.latlng.lat, e.latlng.lng])
+    },
+  })
+  return position ? <Marker position={position} /> : null
+}
+
 export default function SupervisorTasks() {
   const { profile } = useAuth()
   const { t } = useLanguage()
   const { data, loading, error, reload } = useWardData(15000)
-  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', status: 'PENDING' })
+  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', status: 'PENDING', location_name: '' })
+  const [targetPos, setTargetPos] = useState(null)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState('')
   const [success, setSuccess] = useState('')
@@ -37,7 +61,10 @@ export default function SupervisorTasks() {
         description: form.description.trim(),
         assigned_by: profile.id,
         ward_no: profile.ward_no,
-        status: form.status
+        status: form.status,
+        location_name: form.location_name.trim(),
+        target_lat: targetPos?.[0] ?? null,
+        target_lng: targetPos?.[1] ?? null,
       }
 
       if (form.assigned_to === 'ALL') {
@@ -51,7 +78,8 @@ export default function SupervisorTasks() {
         setSuccess(`Task "${baseTask.title}" assigned to ${who}`)
       }
 
-      setForm({ title: '', description: '', assigned_to: form.assigned_to, status: 'PENDING' })
+      setForm({ title: '', description: '', assigned_to: form.assigned_to, status: 'PENDING', location_name: '' })
+      setTargetPos(null)
       await reload(true)
     } catch (err) {
       setFormError(err.message)
@@ -78,6 +106,22 @@ export default function SupervisorTasks() {
           <Field label={t('tasks.description')}>
             <textarea className={`${inputCls} min-h-24 py-2`} value={form.description} onChange={set('description')} placeholder={t('tasks.description_ph')} />
           </Field>
+          
+          <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <h3 className="font-semibold text-gray-700">Geofence Location (Optional)</h3>
+            <p className="text-xs text-gray-500">Require the employee to be at this location to check in.</p>
+            <Field label="Location Name">
+              <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder="e.g. Ram Mandir Chowk" />
+            </Field>
+            <div className="h-48 w-full overflow-hidden rounded-md border border-gray-300">
+              <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: '100%', width: '100%' }}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <LocationPicker position={targetPos} setPosition={setTargetPos} />
+              </MapContainer>
+            </div>
+            {targetPos && <p className="text-xs text-green-700">Location selected.</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('tasks.assign_employee')}>
               <select className={inputCls} required value={form.assigned_to} onChange={set('assigned_to')}>
@@ -130,6 +174,9 @@ export default function SupervisorTasks() {
                 <Badge value={tk.status} />
               </div>
               {tk.description && <p className="mt-1 text-sm text-gray-600">{tk.description}</p>}
+              {tk.location_name && (
+                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {tk.location_name}</p>
+              )}
               <p className="mt-2 text-xs text-gray-500">
                 {t('tasks.assigned_to')} <span className="font-semibold text-gray-700">{tk.assignee?.name}</span> · {fmtDate(tk.created_at)}
               </p>

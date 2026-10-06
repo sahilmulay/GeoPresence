@@ -73,10 +73,10 @@ cross join (values (-1), (-2), (-3)) as d(d)
 cross join (values ('CHECKIN'), ('CHECKOUT')) as t(kind);
 
 -- 4) tasks
-insert into public.tasks (title, description, assigned_by, assigned_to, ward_no, status, created_at) values
-  ('Road Cleaning',          'Area: Market Area. Sweep the main road and clear debris before 11 AM.',  'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 5, 'PENDING',     pg_temp.ts(0, 8)),
-  ('Drain Cleaning',         'Area: Lane 3. Clear blocked drain near the bus stop.',                    'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 5, 'IN_PROGRESS', pg_temp.ts(0, 8)),
-  ('Garbage Collection',     'Area: Gandhi Nagar. Collect garbage from all community bins.',            'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 5, 'IN_PROGRESS', pg_temp.ts(0, 8)),
-  ('Footpath Cleaning',      'Area: Shivajinagar. Clean footpath outside the market gate.',             'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 5, 'COMPLETED',   pg_temp.ts(-1, 8)),
-  ('Street Light Repair',    'Area: Shivaji Chowk. Check and fix 5 street lights.',                     'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 5, 'PENDING',     pg_temp.ts(0, 8)),
-  ('Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.',                   'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 5, 'COMPLETED',   pg_temp.ts(-1, 8));
+insert into public.tasks (title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng, created_at) values
+  ('Road Cleaning',          'Area: Market Area. Sweep the main road and clear debris before 11 AM.',  'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 5, 'PENDING',     'Ram Mandir Chowk', 18.5196, 73.8553, pg_temp.ts(0, 8)),
+  ('Drain Cleaning',         'Area: Lane 3. Clear blocked drain near the bus stop.',                    'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 5, 'IN_PROGRESS', 'Lane 3', 18.5200, 73.8560, pg_temp.ts(0, 8)),
+  ('Garbage Collection',     'Area: Gandhi Nagar. Collect garbage from all community bins.',            'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 5, 'IN_PROGRESS', 'Gandhi Nagar', 18.5314, 73.8446, pg_temp.ts(0, 8)),
+  ('Footpath Cleaning',      'Area: Shivajinagar. Clean footpath outside the market gate.',             'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 5, 'COMPLETED',   'Shivajinagar Market', 18.5315, 73.8450, pg_temp.ts(-1, 8)),
+  ('Street Light Repair',    'Area: Shivaji Chowk. Check and fix 5 street lights.',                     'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 5, 'PENDING',     'Shivaji Chowk', 18.5018, 73.8636, pg_temp.ts(0, 8)),
+  ('Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.',                   'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 5, 'COMPLETED',   'Bus Stand', 18.5074, 73.8077, pg_temp.ts(-1, 8));

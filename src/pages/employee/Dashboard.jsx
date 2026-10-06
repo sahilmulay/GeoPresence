@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { useData } from '../../lib/useData'
+import { getPosition } from '../../lib/device'
+import { getDistance, GEOFENCE_RADIUS_M } from '../../lib/geo'
 import { isToday, fmtTime } from '../../lib/format'
 import AttendanceCapture from '../../components/AttendanceCapture'
 import { Badge, Button, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
@@ -30,6 +32,16 @@ export default function EmployeeDashboard() {
     setBusyTask(id)
     setTaskError('')
     try {
+      if (status === 'IN_PROGRESS') {
+        const task = tasks.data?.find((t) => t.id === id)
+        if (task?.target_lat && task?.target_lng) {
+          const pos = await getPosition()
+          const dist = getDistance(pos.latitude, pos.longitude, task.target_lat, task.target_lng)
+          if (dist > GEOFENCE_RADIUS_M) {
+            throw new Error(`Geofence Error: You are ${Math.round(dist)}m away. You must be within ${GEOFENCE_RADIUS_M}m of the task location to start work.`)
+          }
+        }
+      }
       await api.updateTaskStatus(id, status)
       await tasks.reload(true)
     } catch (e) {
@@ -106,7 +118,7 @@ export default function EmployeeDashboard() {
       )}
 
       {capture && (
-        <AttendanceCapture
+        <AttendanceCapture tasks={tasks.data ?? []}
           type={capture}
           employeeId={profile.id}
           onClose={() => setCapture(null)}

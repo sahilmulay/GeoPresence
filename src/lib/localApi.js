@@ -102,12 +102,12 @@ const task = (id, title, description, slug, status, daysAgo = 0) => ({
 })
 
 const seedTasks = () => [
-  task(1, 'Road Cleaning', 'Area: Market Area. Sweep the main road and clear debris before 11 AM.', 'sahil', 'PENDING'),
-  task(2, 'Drain Cleaning', 'Area: Lane 3. Clear blocked drain near the bus stop.', 'sahil', 'IN_PROGRESS'),
-  task(3, 'Garbage Collection', 'Area: Gandhi Nagar. Collect garbage from all community bins.', 'amit', 'IN_PROGRESS'),
-  task(4, 'Footpath Cleaning', 'Area: Shivajinagar. Clean footpath outside the market gate.', 'amit', 'COMPLETED', 1),
-  task(5, 'Street Light Repair', 'Area: Shivaji Chowk. Check and fix 5 street lights.', 'rohit', 'PENDING'),
-  task(6, 'Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.', 'priya', 'COMPLETED', 1),
+  task(1, 'Road Cleaning', 'Area: Market Area. Sweep the main road and clear debris before 11 AM.', 'sahil', 'PENDING', 0, 'Ram Mandir Chowk', 18.5196, 73.8553),
+  task(2, 'Drain Cleaning', 'Area: Lane 3. Clear blocked drain near the bus stop.', 'sahil', 'IN_PROGRESS', 0, 'Lane 3', 18.5200, 73.8560),
+  task(3, 'Garbage Collection', 'Area: Gandhi Nagar. Collect garbage from all community bins.', 'amit', 'IN_PROGRESS', 0, 'Gandhi Nagar', 18.5314, 73.8446),
+  task(4, 'Footpath Cleaning', 'Area: Shivajinagar. Clean footpath outside the market gate.', 'amit', 'COMPLETED', 1, 'Shivajinagar Market', 18.5315, 73.8450),
+  task(5, 'Street Light Repair', 'Area: Shivaji Chowk. Check and fix 5 street lights.', 'rohit', 'PENDING', 0, 'Shivaji Chowk', 18.5018, 73.8636),
+  task(6, 'Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.', 'priya', 'COMPLETED', 1, 'Bus Stand', 18.5074, 73.8077),
 ]
 
 // ---------- storage ----------
@@ -235,6 +235,9 @@ export const localApi = {
       timestamp: ts,
       check_type,
       status,
+      location_name,
+      target_lat,
+      target_lng,
       created_at: ts,
     })
     save(db)
@@ -250,7 +253,7 @@ export const localApi = {
     return delay(sortDesc(rows, 'created_at'))
   },
 
-  async createTask({ title, description, assigned_by, assigned_to, ward_no, status }) {
+  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng }) {
     const db = load()
     db.tasks.push({
       id: uid(),
