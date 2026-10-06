@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
 import { useWardData } from '../../lib/wardData'
+import { getPosition } from '../../lib/device'
 import { fmtDate } from '../../lib/format'
 import { Badge, Button, Card, Empty, ErrorNote, Field, PageLoader, SectionTitle, inputCls } from '../../components/ui'
 
@@ -21,11 +22,18 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_CENTER = [18.5204, 73.8567]
 
 function LocationPicker({ position, setPosition }) {
-  useMapEvents({
+  const map = useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng])
     },
   })
+  
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, 15)
+    }
+  }, [position, map])
+
   return position ? <Marker position={position} /> : null
 }
 
@@ -36,6 +44,19 @@ export default function SupervisorTasks() {
   const [form, setForm] = useState({ title: '', description: '', assigned_to: '', status: 'PENDING', location_name: '' })
   const [targetPos, setTargetPos] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [fetchingLoc, setFetchingLoc] = useState(false)
+
+  const handleUseMyLocation = async () => {
+    setFetchingLoc(true)
+    try {
+      const pos = await getPosition()
+      setTargetPos([pos.latitude, pos.longitude])
+    } catch (e) {
+      alert('Could not get your location: ' + e.message)
+    } finally {
+      setFetchingLoc(false)
+    }
+  }
   const [formError, setFormError] = useState('')
   const [success, setSuccess] = useState('')
   const [filter, setFilter] = useState('ALL')
@@ -108,7 +129,17 @@ export default function SupervisorTasks() {
           </Field>
           
           <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <h3 className="font-semibold text-gray-700">Geofence Location (Optional)</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700">Geofence Location (Optional)</h3>
+              <button 
+                type="button" 
+                onClick={handleUseMyLocation} 
+                disabled={fetchingLoc}
+                className="text-xs font-semibold text-blue-600 hover:underline disabled:text-gray-400"
+              >
+                {fetchingLoc ? 'Fetching...' : '📍 Use My Location'}
+              </button>
+            </div>
             <p className="text-xs text-gray-500">Require the employee to be at this location to check in.</p>
             <Field label="Location Name">
               <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder="e.g. Ram Mandir Chowk" />
