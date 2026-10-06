@@ -64,7 +64,7 @@ export default function EmployeeDashboard() {
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-2xl font-bold">{t('emp_dash.welcome')} {profile.name.split(' ')[0]}</h1>
+        <h1 className="text-2xl font-bold">{t('emp_dash.welcome')} {(profile.name || 'Employee').split(' ')[0]}</h1>
         <VoiceAssistant status={voiceStatus} />
         <p className="text-gray-600">Ward Number: {profile.ward_no}</p>
       </div>

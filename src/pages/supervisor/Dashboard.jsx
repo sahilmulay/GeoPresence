@@ -34,7 +34,7 @@ export default function SupervisorDashboard() {
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-2xl font-bold">Welcome {profile.name.split(' ')[0]}</h1>
+        <h1 className="text-2xl font-bold">Welcome {(profile.name || 'Supervisor').split(' ')[0]}</h1>
         <p className="text-gray-600">You are responsible for Ward {profile.ward_no}</p>
       </div>
       <ErrorNote>{error}</ErrorNote>
