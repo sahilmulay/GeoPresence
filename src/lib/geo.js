@@ -14,3 +14,14 @@ export function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 export const GEOFENCE_RADIUS_M = 500
+
+export async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`)
+    const data = await res.json()
+    const name = data.address?.road || data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.name
+    return name || `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`
+  } catch {
+    return `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`
+  }
+}

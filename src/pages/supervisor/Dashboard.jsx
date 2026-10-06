@@ -56,7 +56,14 @@ export default function SupervisorDashboard() {
             <Card key={e.id} className="flex items-center gap-3">
               <Avatar name={e.name} src={s.checkIn?.photo_url} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{e.name}</p>
+                <p className="truncate font-semibold">
+                  {e.name}
+                  {s.checkIn && (
+                    <span className="text-xs font-normal text-gray-500 ml-1">
+                      [<LocationLabel lat={s.checkIn.latitude} lng={s.checkIn.longitude} />]
+                    </span>
+                  )}
+                </p>
                 <p className="text-sm text-gray-600">
                   {taskCount} task{taskCount === 1 ? '' : 's'} assigned · {openCount} open
                 </p>

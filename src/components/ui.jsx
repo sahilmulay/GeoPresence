@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { reverseGeocode } from '../lib/geo'
 import { initials, titleCase } from '../lib/format'
 
 export function Card({ className = '', children, ...rest }) {
@@ -114,4 +116,22 @@ export function SectionTitle({ children, right }) {
       {right}
     </div>
   )
+}
+
+export function LocationLabel({ lat, lng, fallback = 'Unknown Location' }) {
+  const [locName, setLocName] = useState('Loading...')
+  
+  useEffect(() => {
+    if (lat == null || lng == null) {
+      setLocName(fallback)
+      return
+    }
+    let active = true
+    reverseGeocode(lat, lng).then(name => {
+      if (active) setLocName(name)
+    })
+    return () => { active = false }
+  }, [lat, lng, fallback])
+
+  return <span>{locName}</span>
 }

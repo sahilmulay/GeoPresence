@@ -44,7 +44,14 @@ export default function SupervisorAttendance() {
                   <Avatar name={e.name} src={s.checkIn?.photo_url} size="h-14 w-14" />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{e.name}</p>
+                  <p className="truncate font-semibold">
+                    {e.name}
+                    {s.checkIn && (
+                      <span className="text-xs font-normal text-gray-500 ml-1">
+                        [<LocationLabel lat={s.checkIn.latitude} lng={s.checkIn.longitude} />]
+                      </span>
+                    )}
+                  </p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     <Badge value={s.state} label={s.state === 'PRESENT' ? 'Present' : s.state === 'OUT' ? 'Checked Out' : 'Absent'} />
                     {s.flagged && <Badge value="FLAGGED" />}
@@ -66,7 +73,7 @@ export default function SupervisorAttendance() {
                     <dt className="text-xs text-gray-500">Location</dt>
                     <dd>
                       <a className="text-blue-600 underline" href={mapsLink(s.checkIn.latitude, s.checkIn.longitude)} target="_blank" rel="noreferrer">
-                        {fmtCoords(s.checkIn.latitude, s.checkIn.longitude)}
+                        <LocationLabel lat={s.checkIn.latitude} lng={s.checkIn.longitude} fallback={fmtCoords(s.checkIn.latitude, s.checkIn.longitude)} />
                       </a>
                     </dd>
                   </div>

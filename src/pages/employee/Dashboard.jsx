@@ -103,9 +103,12 @@ export default function EmployeeDashboard() {
               {t.location_name && (
                 <p className="mt-1 text-xs font-semibold text-blue-700">📍 {t.location_name}</p>
               )}
+              {t.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
+                <p className="mt-1 text-xs font-semibold text-red-600">You must check in first to start this task.</p>
+              )}
               {t.status !== 'COMPLETED' && (
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Button variant="outline" disabled={t.status !== 'PENDING' || busyTask === t.id} onClick={() => setStatus(t.id, 'IN_PROGRESS')}>
+                  <Button variant="outline" disabled={t.status !== 'PENDING' || busyTask === t.id || latest?.check_type !== 'CHECKIN'} onClick={() => setStatus(t.id, 'IN_PROGRESS')}>
                     Start Work
                   </Button>
                   <Button variant="success" loading={busyTask === t.id} onClick={() => setStatus(t.id, 'COMPLETED')}>
