@@ -33,8 +33,8 @@ export default function EmployeeDashboard() {
   const statusText = !latest
     ? t('emp_dash.not_checked_in')
     : latest.check_type === 'CHECKIN'
-      ? `{t('emp_dash.checked_in_at')} ${fmtTime(latest.timestamp)}`
-      : `{t('emp_dash.checked_out_at')} ${fmtTime(latest.timestamp)}`
+      ? `${t('emp_dash.checked_in_at')} ${fmtTime(latest.timestamp)}`
+      : `${t('emp_dash.checked_out_at')} ${fmtTime(latest.timestamp)}`
 
   const setStatus = async (id, status) => {
     setBusyTask(id)
