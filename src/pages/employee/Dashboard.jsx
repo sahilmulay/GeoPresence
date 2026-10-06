@@ -7,6 +7,7 @@ import { getPosition } from '../../lib/device'
 import { getDistance, GEOFENCE_RADIUS_M } from '../../lib/geo'
 import { isToday, fmtTime } from '../../lib/format'
 import AttendanceCapture from '../../components/AttendanceCapture'
+import VoiceAssistant from '../../components/VoiceAssistant'
 import { Badge, Button, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
 
 export default function EmployeeDashboard() {
@@ -23,6 +24,11 @@ export default function EmployeeDashboard() {
   const latest = todays[0] // list is sorted newest first
   const canCheckIn = !latest || latest.check_type === 'CHECKOUT'
   const canCheckOut = latest?.check_type === 'CHECKIN'
+  
+  const pendingTasks = (tasks.data ?? []).filter(t => t.status !== 'COMPLETED').length
+  let voiceStatus = 'ALL_DONE'
+  if (canCheckIn) voiceStatus = 'NEED_CHECKIN'
+  else if (pendingTasks > 0) voiceStatus = 'NEED_WORK'
 
   const statusText = !latest
     ? t('emp_dash.not_checked_in')
@@ -59,6 +65,7 @@ export default function EmployeeDashboard() {
     <div>
       <div className="mb-4">
         <h1 className="text-2xl font-bold">{t('emp_dash.welcome')} {profile.name.split(' ')[0]}</h1>
+        <VoiceAssistant status={voiceStatus} />
         <p className="text-gray-600">Ward Number: {profile.ward_no}</p>
       </div>
 
