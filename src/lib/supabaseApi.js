@@ -17,7 +17,7 @@ export const supabaseApi = {
 
   // ---------- auth ----------
   subscribe(cb) {
-    supabase.auth.getSession().then(({ data }) => cb(data.session?.user?.id ?? null))
+    supabase.auth.getSession().then(({ data }) => cb(data.session?.user?.id ?? null)).catch((err) => { console.error(err); cb(null); })
     const { data } = supabase.auth.onAuthStateChange((_event, session) => cb(session?.user?.id ?? null))
     return () => data.subscription.unsubscribe()
   },

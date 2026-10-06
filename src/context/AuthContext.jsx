@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
 
   const loadProfile = useCallback(async (id) => {
     try {
-      setProfile(await api.getProfile(id))
+      setProfile(await Promise.race([api.getProfile(id), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))]))
     } catch {
       setProfile(null)
     } finally {
