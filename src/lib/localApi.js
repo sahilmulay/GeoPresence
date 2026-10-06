@@ -1,0 +1,283 @@
+// Demo-mode backend: same API as supabaseApi, but data lives in localStorage.
+// Used automatically when VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set,
+// so the app can always be demoed (even offline).
+import { blobToDataUrl } from './device'
+
+const KEY = 'geopresence_demo_v1'
+export const DEMO_PASSWORD = 'Demo@123'
+
+const listeners = new Set()
+
+// ---------- seed ----------
+const SUP_ID = 'seed-sup-rajesh'
+const emp = (slug, name) => ({
+  id: `seed-emp-${slug}`,
+  role: 'employee',
+  name,
+  email: `${slug}@geopresence.demo`,
+  password: DEMO_PASSWORD,
+  ward_no: 5,
+  supervisor_id: SUP_ID,
+  created_at: new Date().toISOString(),
+})
+
+const seedUsers = () => [
+  {
+    id: SUP_ID,
+    role: 'supervisor',
+    name: 'Rajesh Patil',
+    email: 'rajesh.patil@geopresence.demo',
+    password: DEMO_PASSWORD,
+    ward_no: 5,
+    created_at: new Date().toISOString(),
+  },
+  emp('sahil', 'Sahil Mulay'),
+  emp('amit', 'Amit Jadhav'),
+  emp('rohit', 'Rohit Shinde'),
+  emp('priya', 'Priya Kulkarni'),
+]
+
+// local time on a given day offset (0 = today), clamped so it is never in the future
+const at = (dayOffset, h, m = 0) => {
+  const d = new Date()
+  d.setDate(d.getDate() + dayOffset)
+  d.setHours(h, m, 0, 0)
+  const now = Date.now() - 60 * 1000
+  return new Date(Math.min(d.getTime(), now)).toISOString()
+}
+
+const SPOTS = {
+  sahil: [18.5196, 73.8553], // Laxmi Road market
+  amit: [18.5314, 73.8446], // Shivajinagar
+  rohit: [18.5018, 73.8636], // Swargate
+  priya: [18.5074, 73.8077], // Kothrud
+}
+
+let n = 0
+const att = (slug, check_type, ts, status = 'PRESENT') => {
+  const [la, lo] = SPOTS[slug]
+  const jitter = () => (Math.random() - 0.5) * 0.0006
+  n += 1
+  return {
+    id: `seed-att-${n}`,
+    employee_id: `seed-emp-${slug}`,
+    photo_url: null,
+    latitude: +(la + jitter()).toFixed(6),
+    longitude: +(lo + jitter()).toFixed(6),
+    timestamp: ts,
+    check_type,
+    status,
+    created_at: ts,
+  }
+}
+
+const seedAttendance = () => {
+  n = 0
+  const rows = [
+    // today
+    att('sahil', 'CHECKIN', at(0, 8, 58)),
+    att('amit', 'CHECKIN', at(0, 8, 50)),
+    att('amit', 'CHECKOUT', at(0, 13, 5)),
+    att('priya', 'CHECKIN', at(0, 9, 15), 'FLAGGED'),
+  ]
+  // previous days (history)
+  for (const d of [-1, -2, -3]) {
+    for (const slug of ['sahil', 'amit', 'rohit', 'priya']) {
+      rows.push(att(slug, 'CHECKIN', at(d, 9, 0 + Math.floor(Math.random() * 20))))
+      rows.push(att(slug, 'CHECKOUT', at(d, 17, 0 + Math.floor(Math.random() * 20))))
+    }
+  }
+  return rows
+}
+
+const task = (id, title, description, slug, status, daysAgo = 0) => ({
+  id: `seed-task-${id}`,
+  title,
+  description,
+  assigned_by: SUP_ID,
+  assigned_to: `seed-emp-${slug}`,
+  ward_no: 5,
+  status,
+  created_at: at(-daysAgo, 8, 0),
+})
+
+const seedTasks = () => [
+  task(1, 'Road Cleaning', 'Area: Market Area. Sweep the main road and clear debris before 11 AM.', 'sahil', 'PENDING'),
+  task(2, 'Drain Cleaning', 'Area: Lane 3. Clear blocked drain near the bus stop.', 'sahil', 'IN_PROGRESS'),
+  task(3, 'Garbage Collection', 'Area: Gandhi Nagar. Collect garbage from all community bins.', 'amit', 'IN_PROGRESS'),
+  task(4, 'Footpath Cleaning', 'Area: Shivajinagar. Clean footpath outside the market gate.', 'amit', 'COMPLETED', 1),
+  task(5, 'Street Light Repair', 'Area: Shivaji Chowk. Check and fix 5 street lights.', 'rohit', 'PENDING'),
+  task(6, 'Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.', 'priya', 'COMPLETED', 1),
+]
+
+// ---------- storage ----------
+function load() {
+  let db = null
+  try {
+    db = JSON.parse(localStorage.getItem(KEY))
+  } catch {
+    db = null
+  }
+  const today = new Date().toDateString()
+  if (!db) {
+    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), session: null, seedDay: today }
+    save(db)
+  } else if (db.seedDay !== today) {
+    // Keep demo data fresh: re-date the seeded attendance so "Present Today" is never empty.
+    db.attendance = [...seedAttendance(), ...db.attendance.filter((a) => !a.id.startsWith('seed-'))]
+    db.seedDay = today
+    save(db)
+  }
+  return db
+}
+
+const save = (db) => localStorage.setItem(KEY, JSON.stringify(db))
+const uid = () => crypto.randomUUID()
+const delay = (v) => new Promise((r) => setTimeout(() => r(v), 150))
+const notify = (id) => listeners.forEach((cb) => cb(id))
+
+const publicUser = (u) => {
+  if (!u) return null
+  const { password: _p, ...rest } = u
+  return rest
+}
+
+const sortDesc = (arr, f) => [...arr].sort((a, b) => new Date(b[f]) - new Date(a[f]))
+
+export const localApi = {
+  mode: 'demo',
+
+  subscribe(cb) {
+    listeners.add(cb)
+    cb(load().session)
+    return () => listeners.delete(cb)
+  },
+
+  async signUp({ role, name, email, password, ward_no }) {
+    const db = load()
+    if (db.users.some((u) => u.email.toLowerCase() === email.toLowerCase()))
+      throw new Error('An account with this email already exists')
+    const user = {
+      id: uid(),
+      role,
+      name,
+      email,
+      password,
+      ward_no: Number(ward_no),
+      created_at: new Date().toISOString(),
+    }
+    db.users.push(user)
+    db.session = user.id
+    save(db)
+    notify(user.id)
+    return { needsConfirmation: false }
+  },
+
+  async signIn({ email, password }) {
+    const db = load()
+    const u = db.users.find((x) => x.email.toLowerCase() === email.toLowerCase() && x.password === password)
+    if (!u) throw new Error('Invalid email or password')
+    db.session = u.id
+    save(db)
+    notify(u.id)
+  },
+
+  async signOut() {
+    const db = load()
+    db.session = null
+    save(db)
+    notify(null)
+  },
+
+  async getProfile(userId) {
+    const db = load()
+    const u = db.users.find((x) => x.id === userId)
+    if (!u) return delay(null)
+    const profile = publicUser(u)
+    if (u.role === 'employee') {
+      const sup = db.users.find((x) => x.role === 'supervisor' && x.ward_no === u.ward_no)
+      profile.supervisor = sup ? { name: sup.name, email: sup.email } : null
+    }
+    return delay(profile)
+  },
+
+  async listEmployees() {
+    const db = load()
+    const me = db.users.find((u) => u.id === db.session)
+    return delay(
+      db.users
+        .filter((u) => u.role === 'employee' && u.ward_no === me?.ward_no)
+        .map(publicUser)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    )
+  },
+
+  async listAttendance({ employeeId } = {}) {
+    const db = load()
+    const me = db.users.find((u) => u.id === db.session)
+    const rows = db.attendance
+      .map((a) => ({ ...a, employees: db.users.find((u) => u.id === a.employee_id) }))
+      .filter((a) => a.employees && (employeeId ? a.employee_id === employeeId : a.employees.ward_no === me?.ward_no))
+      .map((a) => ({ ...a, employees: { name: a.employees.name, ward_no: a.employees.ward_no } }))
+    return delay(sortDesc(rows, 'timestamp'))
+  },
+
+  async addAttendance({ employee_id, blob, latitude, longitude, check_type, status }) {
+    const photo_url = await blobToDataUrl(blob)
+    const db = load()
+    const ts = new Date().toISOString()
+    db.attendance.push({
+      id: uid(),
+      employee_id,
+      photo_url,
+      latitude,
+      longitude,
+      timestamp: ts,
+      check_type,
+      status,
+      created_at: ts,
+    })
+    save(db)
+    return delay()
+  },
+
+  async listTasks({ employeeId } = {}) {
+    const db = load()
+    const me = db.users.find((u) => u.id === db.session)
+    const rows = db.tasks
+      .filter((t) => (employeeId ? t.assigned_to === employeeId : t.ward_no === me?.ward_no))
+      .map((t) => ({ ...t, assignee: { name: db.users.find((u) => u.id === t.assigned_to)?.name ?? 'Unknown' } }))
+    return delay(sortDesc(rows, 'created_at'))
+  },
+
+  async createTask({ title, description, assigned_by, assigned_to, ward_no, status }) {
+    const db = load()
+    db.tasks.push({
+      id: uid(),
+      title,
+      description,
+      assigned_by,
+      assigned_to,
+      ward_no,
+      status,
+      created_at: new Date().toISOString(),
+    })
+    save(db)
+    return delay()
+  },
+
+  async updateTaskStatus(id, status) {
+    const db = load()
+    const t = db.tasks.find((x) => x.id === id)
+    if (t) t.status = status
+    save(db)
+    return delay()
+  },
+
+  // demo-only helper
+  async resetDemo() {
+    localStorage.removeItem(KEY)
+    load()
+    notify(null)
+  },
+}

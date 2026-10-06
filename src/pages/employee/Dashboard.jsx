@@ -1,0 +1,118 @@
+import { useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import { api } from '../../lib/api'
+import { useData } from '../../lib/useData'
+import { isToday, fmtTime } from '../../lib/format'
+import AttendanceCapture from '../../components/AttendanceCapture'
+import { Badge, Button, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
+
+export default function EmployeeDashboard() {
+  const { profile } = useAuth()
+  const [capture, setCapture] = useState(null) // 'CHECKIN' | 'CHECKOUT' | null
+  const [busyTask, setBusyTask] = useState(null)
+  const [taskError, setTaskError] = useState('')
+
+  const att = useData(() => api.listAttendance({ employeeId: profile.id }), [profile.id])
+  const tasks = useData(() => api.listTasks({ employeeId: profile.id }), [profile.id], { poll: 15000 })
+
+  const todays = (att.data ?? []).filter((a) => isToday(a.timestamp))
+  const latest = todays[0] // list is sorted newest first
+  const canCheckIn = !latest || latest.check_type === 'CHECKOUT'
+  const canCheckOut = latest?.check_type === 'CHECKIN'
+
+  const statusText = !latest
+    ? 'You have not checked in today'
+    : latest.check_type === 'CHECKIN'
+      ? `Checked in at ${fmtTime(latest.timestamp)}`
+      : `Checked out at ${fmtTime(latest.timestamp)}`
+
+  const setStatus = async (id, status) => {
+    setBusyTask(id)
+    setTaskError('')
+    try {
+      await api.updateTaskStatus(id, status)
+      await tasks.reload(true)
+    } catch (e) {
+      setTaskError(e.message)
+    } finally {
+      setBusyTask(null)
+    }
+  }
+
+  const openTasks = (tasks.data ?? []).filter((t) => t.status !== 'COMPLETED').length
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Welcome {profile.name.split(' ')[0]}</h1>
+        <p className="text-gray-600">Ward Number: {profile.ward_no}</p>
+      </div>
+
+      <Card className="mb-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Your Supervisor</p>
+          <p className="font-semibold">{profile.supervisor?.name ?? 'Not assigned yet'}</p>
+          {!profile.supervisor && <p className="text-xs text-gray-500">A supervisor for Ward {profile.ward_no} has not registered yet.</p>}
+        </div>
+      </Card>
+
+      <SectionTitle>Mark Attendance</SectionTitle>
+      <Card>
+        <p className="mb-3 font-medium text-gray-700">{att.loading ? 'Loading…' : statusText}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="success" className="min-h-16 text-lg" disabled={att.loading || !canCheckIn} onClick={() => setCapture('CHECKIN')}>
+            CHECK IN
+          </Button>
+          <Button className="min-h-16 text-lg" disabled={att.loading || !canCheckOut} onClick={() => setCapture('CHECKOUT')}>
+            CHECK OUT
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-gray-500">A selfie and your GPS location are recorded with every check in / out.</p>
+      </Card>
+
+      <SectionTitle right={<span className="text-sm text-gray-500">{openTasks} open</span>}>Assigned Tasks</SectionTitle>
+      <ErrorNote>{taskError || tasks.error}</ErrorNote>
+      {tasks.loading ? (
+        <PageLoader />
+      ) : tasks.data?.length ? (
+        <div className="space-y-3">
+          {tasks.data.map((t) => (
+            <Card key={t.id}>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-semibold">{t.title}</h3>
+                <Badge value={t.status} />
+              </div>
+              {t.description && <p className="mt-1 text-sm text-gray-600">{t.description}</p>}
+              {t.status !== 'COMPLETED' && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Button variant="outline" disabled={t.status !== 'PENDING' || busyTask === t.id} onClick={() => setStatus(t.id, 'IN_PROGRESS')}>
+                    Start Work
+                  </Button>
+                  <Button variant="success" loading={busyTask === t.id} onClick={() => setStatus(t.id, 'COMPLETED')}>
+                    Mark Completed
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Empty>No tasks assigned yet. Your supervisor will assign work here.</Empty>
+      )}
+
+      {capture && (
+        <AttendanceCapture
+          type={capture}
+          employeeId={profile.id}
+          onClose={() => setCapture(null)}
+          onDone={() => att.reload(true)}
+        />
+      )}
+    </div>
+  )
+}
