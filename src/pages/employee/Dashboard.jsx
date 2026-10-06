@@ -25,7 +25,7 @@ export default function EmployeeDashboard() {
   const canCheckIn = !latest || latest.check_type === 'CHECKOUT'
   const canCheckOut = latest?.check_type === 'CHECKIN'
   
-  const pendingTasks = (tasks.data ?? []).filter(t => t.status !== 'COMPLETED').length
+  const pendingTasks = (tasks.data ?? []).filter(tk => tk.status !== 'COMPLETED').length
   let voiceStatus = 'ALL_DONE'
   if (canCheckIn) voiceStatus = 'NEED_CHECKIN'
   else if (pendingTasks > 0) voiceStatus = 'NEED_WORK'
@@ -41,7 +41,7 @@ export default function EmployeeDashboard() {
     setTaskError('')
     try {
       if (status === 'IN_PROGRESS') {
-        const task = tasks.data?.find((t) => t.id === id)
+        const task = tasks.data?.find((tk) => tk.id === id)
         if (task?.target_lat && task?.target_lng) {
           const pos = await getPosition()
           const dist = getDistance(pos.latitude, pos.longitude, task.target_lat, task.target_lng)
@@ -59,7 +59,7 @@ export default function EmployeeDashboard() {
     }
   }
 
-  const openTasks = (tasks.data ?? []).filter((t) => t.status !== 'COMPLETED').length
+  const openTasks = (tasks.data ?? []).filter((tk) => tk.status !== 'COMPLETED').length
 
   return (
     <div>
@@ -102,26 +102,26 @@ export default function EmployeeDashboard() {
         <PageLoader />
       ) : tasks.data?.length ? (
         <div className="space-y-3">
-          {tasks.data.map((t) => (
-            <Card key={t.id}>
+          {tasks.data.map((task) => (
+            <Card key={task.id}>
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-lg font-semibold">{t.title}</h3>
-                <Badge value={t.status} />
+                <h3 className="text-lg font-semibold">{task.title}</h3>
+                <Badge value={task.status} />
               </div>
-              {t.description && <p className="mt-1 text-sm text-gray-600">{t.description}</p>}
-              {t.location_name && (
-                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {t.location_name}</p>
+              {task.description && <p className="mt-1 text-sm text-gray-600">{task.description}</p>}
+              {task.location_name && (
+                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {task.location_name}</p>
               )}
-              {t.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
+              {task.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
                 <p className="mt-1 text-xs font-semibold text-red-600">{t('emp_dash.checkin_first')}</p>
               )}
-              {t.status !== 'COMPLETED' && (
+              {task.status !== 'COMPLETED' && (
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Button variant="outline" disabled={t.status !== 'PENDING' || busyTask === t.id || latest?.check_type !== 'CHECKIN'} onClick={() => setStatus(t.id, 'IN_PROGRESS')}>
-                    Start Work
+                  <Button variant="outline" disabled={task.status !== 'PENDING' || busyTask === task.id || latest?.check_type !== 'CHECKIN'} onClick={() => setStatus(task.id, 'IN_PROGRESS')}>
+                    {t('emp_dash.start_work')}
                   </Button>
-                  <Button variant="success" loading={busyTask === t.id} onClick={() => setStatus(t.id, 'COMPLETED')}>
-                    Mark Completed
+                  <Button variant="success" loading={busyTask === task.id} onClick={() => setStatus(task.id, 'COMPLETED')}>
+                    {t('emp_dash.mark_completed')}
                   </Button>
                 </div>
               )}
