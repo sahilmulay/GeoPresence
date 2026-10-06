@@ -198,7 +198,7 @@ export const localApi = {
       const sup = db.users.find((x) => x.role === 'supervisor' && x.ward_no === u.ward_no)
       profile.supervisor = sup ? { name: sup.name, email: sup.email } : null
     }
-    return delay(profile)
+    return delay({ ...profile, role: u.role })
   },
 
   async listEmployees() {
