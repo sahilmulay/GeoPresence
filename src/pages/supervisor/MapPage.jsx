@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
 import { useWardData } from '../../lib/wardData'
 import { fmtCoords, fmtDateTime, isToday, mapsLink } from '../../lib/format'
@@ -20,6 +21,7 @@ function FitBounds({ points }) {
 
 export default function SupervisorMap() {
   const { data, loading, error } = useWardData()
+  const { t } = useLanguage()
   const [mode, setMode] = useState('today') // today | latest
 
   const markers = useMemo(() => {

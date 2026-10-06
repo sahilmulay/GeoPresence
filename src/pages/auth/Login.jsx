@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../../context/LanguageContext'
 import { useAuth } from '../../context/AuthContext'
 import { Button, Card, ErrorNote, Field, inputCls } from '../../components/ui'
 
 export const DEMO_ACCOUNTS = [
-  { label: '{t('auth.demo_sup')}', sub: 'Rajesh Patil · Ward 5', email: 'rajesh.patil@geopresence.demo' },
-  { label: '{t('auth.demo_emp')}', sub: 'Sahil Mulay · Ward 5', email: 'sahil@geopresence.demo' },
+  { label: 'demo_sup', sub: 'Rajesh Patil · Ward 5', email: 'rajesh.patil@geopresence.demo' },
+  { label: 'demo_emp', sub: 'Sahil Mulay · Ward 5', email: 'sahil@geopresence.demo' },
 ]
 const DEMO_PASSWORD = 'Demo@123'
 const showDemo = import.meta.env.VITE_SHOW_DEMO_LOGINS !== 'false'
@@ -32,7 +33,7 @@ export function AuthShell({ title, subtitle, children }) {
 export default function Login() {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
-  const [password, set{t('auth.password')}] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const { t } = useLanguage()
   const [busy, setBusy] = useState(false)
@@ -62,7 +63,7 @@ export default function Login() {
           <input className={inputCls} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </Field>
         <Field label="{t('auth.password')}">
-          <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => set{t('auth.password')}(e.target.value)} placeholder="Your password" />
+          <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
         </Field>
         <ErrorNote>{error}</ErrorNote>
         <Button type="submit" className="w-full" loading={busy}>

@@ -194,9 +194,9 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
             >
               {locState === 'loading' && <Spinner small />}
               <span>
-                {locState === 'ok' && '{t('cap.loc_ready')}'}
-                {locState === 'loading' && '{t('cap.loc_loading')}'}
-                {locState === 'error' && '{t('cap.loc_error')}'}
+                {locState === 'ok' && t('cap.loc_ready')}
+                {locState === 'loading' && t('cap.loc_loading')}
+                {locState === 'error' && t('cap.loc_error')}
               </span>
               {locState === 'error' && (
                 <button className="ml-auto font-semibold underline" onClick={fetchLocation}>
@@ -224,7 +224,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
                     onChange={(e) => e.target.files?.[0] && takePhotoFromBlob(e.target.files[0])}
                   />
                   <Button variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
-                    {camError ? '{t('cap.open_cam')}' : '{t('cap.use_app')}'}
+                    {camError ? t('cap.open_cam') : t('cap.use_app')}
                   </Button>
                 </>
               )}

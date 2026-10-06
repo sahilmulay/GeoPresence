@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 import { todaySummary, useWardData } from '../../lib/wardData'
 import { fmtCoords, fmtTime, mapsLink, toDateInput } from '../../lib/format'
-import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, inputCls } from '../../components/ui'
+import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, inputCls, LocationLabel } from '../../components/ui'
 
 export default function SupervisorAttendance() {
   const { data, loading, error } = useWardData()
+  const { t } = useLanguage()
   const [date, setDate] = useState(toDateInput())
   const [preview, setPreview] = useState(null)
 

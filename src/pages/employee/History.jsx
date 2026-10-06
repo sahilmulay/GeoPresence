@@ -6,6 +6,7 @@ import { fmtCoords, fmtDate, fmtTime, mapsLink } from '../../lib/format'
 import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader } from '../../components/ui'
 
 export default function EmployeeHistory() {
+  const { t } = useLanguage()
   const { profile } = useAuth()
   const { data, loading, error } = useData(() => api.listAttendance({ employeeId: profile.id }), [profile.id])
 

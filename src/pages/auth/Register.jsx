@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../../context/LanguageContext'
 import { useAuth } from '../../context/AuthContext'
 import { Button, ErrorNote, Field, inputCls } from '../../components/ui'
 import { AuthShell } from './Login'
 
 export default function Register() {
   const { signUp } = useAuth()
-  const [role, set{t('auth.role')}] = useState('employee')
+  const [role, setRole] = useState('employee')
   const [form, setForm] = useState({ name: '', email: '', password: '', ward_no: '' })
   const [error, setError] = useState('')
   const { t } = useLanguage()
@@ -18,7 +19,7 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault()
     setError('')
-    if (form.password.length < 6) return setError('{t('auth.password')} must be at least 6 characters')
+    if (form.password.length < 6) return setError(`${t('auth.password')} must be at least 6 characters`)
     setBusy(true)
     try {
       const res = await signUp({ role, ...form, name: form.name.trim(), email: form.email.trim() })
@@ -44,7 +45,7 @@ export default function Register() {
             type="button"
             role="radio"
             aria-checked={role === val}
-            onClick={() => set{t('auth.role')}(val)}
+            onClick={() => setRole(val)}
             className={`rounded-xl border-2 p-3 text-left ${
               role === val ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'
             }`}

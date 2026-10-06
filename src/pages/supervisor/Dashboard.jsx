@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { todaySummary, useWardData } from '../../lib/wardData'
 import { fmtTime } from '../../lib/format'
-import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
+import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, SectionTitle, LocationLabel } from '../../components/ui'
 
 function Stat({ label, value, tone = 'text-gray-900' }) {
   return (
@@ -17,6 +17,7 @@ function Stat({ label, value, tone = 'text-gray-900' }) {
 export default function SupervisorDashboard() {
   const { profile } = useAuth()
   const { data, loading, error } = useWardData()
+  const { t } = useLanguage()
 
   if (loading) return <PageLoader />
   const { employees = [], attendance = [], tasks = [] } = data ?? {}
@@ -39,10 +40,10 @@ export default function SupervisorDashboard() {
       <ErrorNote>{error}</ErrorNote>
 
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="{t('sup_dash.total_emp')}" value={employees.length} />
-        <Stat label="{t('sup_dash.present')}" value={present} tone="text-green-600" />
-        <Stat label="{t('sup_dash.absent')}" value={employees.length - present} tone="text-red-600" />
-        <Stat label="{t('sup_dash.tasks_assigned')}" value={tasks.length} tone="text-blue-600" />
+        <Stat label={t('sup_dash.total_emp')} value={employees.length} />
+        <Stat label={t('sup_dash.present')} value={present} tone="text-green-600" />
+        <Stat label={t('sup_dash.absent')} value={employees.length - present} tone="text-red-600" />
+        <Stat label={t('sup_dash.tasks_assigned')} value={tasks.length} tone="text-blue-600" />
       </div>
       <p className="mt-2 text-xs text-gray-500">
         {completed} of {tasks.length} {t('sup_dash.tasks_completed')}
@@ -86,7 +87,7 @@ export default function SupervisorDashboard() {
           {t('sup_dash.assign_btn')}
         </Link>
         <Link to="/supervisor/map" className="flex min-h-12 items-center justify-center rounded-xl border border-gray-300 bg-white font-semibold">
-          View Map
+          {t('sup_dash.map_btn')}
         </Link>
       </div>
     </div>

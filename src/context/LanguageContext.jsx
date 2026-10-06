@@ -45,7 +45,7 @@ const dictionary = {
     'auth.login': 'Log In',
     'auth.email': 'Email Address',
     'auth.password': 'Password',
-    'auth.no_account': 'Don't have an account? Register',
+    'auth.no_account': 'Don\'t have an account? Register',
     'auth.demo_sup': 'Demo Supervisor',
     'auth.demo_emp': 'Demo Employee',
     'auth.register': 'Create Account',
@@ -71,7 +71,7 @@ const dictionary = {
     'sup_dash.assign_btn': 'Assign Task',
     'sup_dash.map_btn': 'Live Map',
 
-    'sup_att.title': 'Today's Attendance',
+    'sup_att.title': 'Today\'s Attendance',
     'sup_att.date': 'Date',
     'sup_att.check_in': 'Check In',
     'sup_att.check_out': 'Check Out',

@@ -10,6 +10,7 @@ import AttendanceCapture from '../../components/AttendanceCapture'
 import { Badge, Button, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
 
 export default function EmployeeDashboard() {
+  const { t } = useLanguage()
   const { profile } = useAuth()
   const [capture, setCapture] = useState(null) // 'CHECKIN' | 'CHECKOUT' | null
   const [busyTask, setBusyTask] = useState(null)
@@ -24,7 +25,7 @@ export default function EmployeeDashboard() {
   const canCheckOut = latest?.check_type === 'CHECKIN'
 
   const statusText = !latest
-    ? '{t('emp_dash.not_checked_in')}'
+    ? t('emp_dash.not_checked_in')
     : latest.check_type === 'CHECKIN'
       ? `{t('emp_dash.checked_in_at')} ${fmtTime(latest.timestamp)}`
       : `{t('emp_dash.checked_out_at')} ${fmtTime(latest.timestamp)}`
@@ -69,7 +70,7 @@ export default function EmployeeDashboard() {
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('emp_dash.supervisor')}</p>
-          <p className="font-semibold">{profile.supervisor?.name ?? '{t('emp_dash.not_assigned')}'}</p>
+          <p className="font-semibold">{profile.supervisor?.name ?? t('emp_dash.not_assigned')}</p>
           {!profile.supervisor && <p className="text-xs text-gray-500">A supervisor for Ward {profile.ward_no} has not registered yet.</p>}
         </div>
       </Card>
