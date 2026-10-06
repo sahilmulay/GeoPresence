@@ -231,7 +231,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
                   <Button variant="outline" onClick={retake} disabled={step === 'saving'}>
                     Retake
                   </Button>
-                  <Button variant={type === 'CHECKIN' ? 'success' : 'primary'} onClick={submit} loading={step === 'saving'}>
+                  <Button variant={type === 'CHECKIN' ? 'success' : 'danger'} onClick={submit} loading={step === 'saving'}>
                     Confirm {label}
                   </Button>
                 </div>

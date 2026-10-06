@@ -80,7 +80,7 @@ export default function EmployeeDashboard() {
           <Button variant="success" className="min-h-16 text-lg" disabled={att.loading || !canCheckIn} onClick={() => setCapture('CHECKIN')}>
             CHECK IN
           </Button>
-          <Button className="min-h-16 text-lg" disabled={att.loading || !canCheckOut} onClick={() => setCapture('CHECKOUT')}>
+          <Button variant="danger" className="min-h-16 text-lg" disabled={att.loading || !canCheckOut} onClick={() => setCapture('CHECKOUT')}>
             CHECK OUT
           </Button>
         </div>
@@ -100,6 +100,9 @@ export default function EmployeeDashboard() {
                 <Badge value={t.status} />
               </div>
               {t.description && <p className="mt-1 text-sm text-gray-600">{t.description}</p>}
+              {t.location_name && (
+                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {t.location_name}</p>
+              )}
               {t.status !== 'COMPLETED' && (
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Button variant="outline" disabled={t.status !== 'PENDING' || busyTask === t.id} onClick={() => setStatus(t.id, 'IN_PROGRESS')}>
