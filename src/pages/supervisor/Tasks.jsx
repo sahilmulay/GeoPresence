@@ -130,19 +130,19 @@ export default function SupervisorTasks() {
           
           <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700">Geofence Location (Optional)</h3>
+              <h3 className="font-semibold text-gray-700">{t('tasks.geo_opt')}</h3>
               <button 
                 type="button" 
                 onClick={handleUseMyLocation} 
                 disabled={fetchingLoc}
                 className="text-xs font-semibold text-blue-600 hover:underline disabled:text-gray-400"
               >
-                {fetchingLoc ? 'Fetching...' : '📍 Use My Location'}
+                {fetchingLoc ? t('tasks.fetching') : t('tasks.use_loc')}
               </button>
             </div>
-            <p className="text-xs text-gray-500">Require the employee to be at this location to check in.</p>
-            <Field label="Location Name">
-              <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder="e.g. Ram Mandir Chowk" />
+            <p className="text-xs text-gray-500">{t('tasks.geo_desc')}</p>
+            <Field label={t('tasks.loc_name')}>
+              <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder={t('tasks.loc_name_ph')} />
             </Field>
             <div className="h-48 w-full overflow-hidden rounded-md border border-gray-300">
               <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: '100%', width: '100%' }}>
@@ -150,7 +150,7 @@ export default function SupervisorTasks() {
                 <LocationPicker position={targetPos} setPosition={setTargetPos} />
               </MapContainer>
             </div>
-            {targetPos && <p className="text-xs text-green-700">Location selected.</p>}
+            {targetPos && <p className="text-xs text-green-700">{t('tasks.loc_selected')}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

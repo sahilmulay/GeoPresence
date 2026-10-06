@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext'
 import { Button, Card, ErrorNote, Field, inputCls } from '../../components/ui'
 
 export const DEMO_ACCOUNTS = [
-  { label: 'Demo Supervisor', sub: 'Rajesh Patil · Ward 5', email: 'rajesh.patil@geopresence.demo' },
-  { label: 'Demo Employee', sub: 'Sahil Mulay · Ward 5', email: 'sahil@geopresence.demo' },
+  { label: '{t('auth.demo_sup')}', sub: 'Rajesh Patil · Ward 5', email: 'rajesh.patil@geopresence.demo' },
+  { label: '{t('auth.demo_emp')}', sub: 'Sahil Mulay · Ward 5', email: 'sahil@geopresence.demo' },
 ]
 const DEMO_PASSWORD = 'Demo@123'
 const showDemo = import.meta.env.VITE_SHOW_DEMO_LOGINS !== 'false'
@@ -32,8 +32,9 @@ export function AuthShell({ title, subtitle, children }) {
 export default function Login() {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [password, set{t('auth.password')}] = useState('')
   const [error, setError] = useState('')
+  const { t } = useLanguage()
   const [busy, setBusy] = useState(false)
 
   const submit = async (creds) => {
@@ -60,8 +61,8 @@ export default function Login() {
         <Field label="Email">
           <input className={inputCls} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </Field>
-        <Field label="Password">
-          <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
+        <Field label="{t('auth.password')}">
+          <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => set{t('auth.password')}(e.target.value)} placeholder="Your password" />
         </Field>
         <ErrorNote>{error}</ErrorNote>
         <Button type="submit" className="w-full" loading={busy}>

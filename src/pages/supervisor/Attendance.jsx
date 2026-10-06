@@ -22,7 +22,7 @@ export default function SupervisorAttendance() {
 
       <div className="mb-3 flex items-end justify-between gap-3">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-gray-700">Date</span>
+          <span className="mb-1 block text-sm font-medium text-gray-700">{t('sup_att.date')}</span>
           <input type="date" className={inputCls} max={toDateInput()} value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </label>
         <p className="pb-3 text-sm text-gray-600">
@@ -53,7 +53,7 @@ export default function SupervisorAttendance() {
                     )}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge value={s.state} label={s.state === 'PRESENT' ? 'Present' : s.state === 'OUT' ? 'Checked Out' : 'Absent'} />
+                    <Badge value={s.state} label={s.state === 'PRESENT' ? t('sup_dash.present_badge') : s.state === 'OUT' ? t('sup_dash.out_badge') : t('sup_dash.absent_badge')} />
                     {s.flagged && <Badge value="FLAGGED" />}
                   </div>
                 </div>
@@ -62,15 +62,15 @@ export default function SupervisorAttendance() {
               {s.checkIn ? (
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg bg-gray-50 p-3 text-sm">
                   <div>
-                    <dt className="text-xs text-gray-500">Check In</dt>
+                    <dt className="text-xs text-gray-500">{t('sup_att.check_in')}</dt>
                     <dd className="font-semibold">{fmtTime(s.checkIn.timestamp)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-gray-500">Check Out</dt>
+                    <dt className="text-xs text-gray-500">{t('sup_att.check_out')}</dt>
                     <dd className="font-semibold">{s.checkOut ? fmtTime(s.checkOut.timestamp) : 'Not yet'}</dd>
                   </div>
                   <div className="col-span-2">
-                    <dt className="text-xs text-gray-500">Location</dt>
+                    <dt className="text-xs text-gray-500">{t('sup_att.location')}</dt>
                     <dd>
                       <a className="text-blue-600 underline" href={mapsLink(s.checkIn.latitude, s.checkIn.longitude)} target="_blank" rel="noreferrer">
                         <LocationLabel lat={s.checkIn.latitude} lng={s.checkIn.longitude} fallback={fmtCoords(s.checkIn.latitude, s.checkIn.longitude)} />
@@ -79,7 +79,7 @@ export default function SupervisorAttendance() {
                   </div>
                 </dl>
               ) : (
-                <p className="mt-2 text-sm text-gray-500">No check in on this date.</p>
+                <p className="mt-2 text-sm text-gray-500">{t('sup_att.no_checkin')}</p>
               )}
             </Card>
           ))}

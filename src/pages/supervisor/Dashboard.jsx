@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { todaySummary, useWardData } from '../../lib/wardData'
 import { fmtTime } from '../../lib/format'
 import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
@@ -38,17 +39,17 @@ export default function SupervisorDashboard() {
       <ErrorNote>{error}</ErrorNote>
 
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Total Employees" value={employees.length} />
-        <Stat label="Present Today" value={present} tone="text-green-600" />
-        <Stat label="Absent Today" value={employees.length - present} tone="text-red-600" />
-        <Stat label="Tasks Assigned" value={tasks.length} tone="text-blue-600" />
+        <Stat label="{t('sup_dash.total_emp')}" value={employees.length} />
+        <Stat label="{t('sup_dash.present')}" value={present} tone="text-green-600" />
+        <Stat label="{t('sup_dash.absent')}" value={employees.length - present} tone="text-red-600" />
+        <Stat label="{t('sup_dash.tasks_assigned')}" value={tasks.length} tone="text-blue-600" />
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        {completed} of {tasks.length} tasks completed
+        {completed} of {tasks.length} {t('sup_dash.tasks_completed')}
       </p>
 
-      <SectionTitle right={<Link to="/supervisor/attendance" className="text-sm font-semibold text-blue-600">View attendance</Link>}>
-        Employees
+      <SectionTitle right={<Link to="/supervisor/attendance" className="text-sm font-semibold text-blue-600">{t('sup_dash.view_att')}</Link>}>
+        {t('sup_dash.employees')}
       </SectionTitle>
       {rows.length ? (
         <div className="space-y-3">
@@ -65,24 +66,24 @@ export default function SupervisorDashboard() {
                   )}
                 </p>
                 <p className="text-sm text-gray-600">
-                  {taskCount} task{taskCount === 1 ? '' : 's'} assigned · {openCount} open
+                  {taskCount} {t('sup_dash.task_assigned')} · {openCount} {t('sup_dash.open')}
                 </p>
-                {s.checkIn && <p className="text-xs text-gray-500">In {fmtTime(s.checkIn.timestamp)}</p>}
+                {s.checkIn && <p className="text-xs text-gray-500">{t('sup_dash.in')} {fmtTime(s.checkIn.timestamp)}</p>}
               </div>
               <div className="flex flex-col items-end gap-1">
-                <Badge value={s.state} label={s.state === 'PRESENT' ? 'Present' : s.state === 'OUT' ? 'Checked Out' : 'Absent'} />
+                <Badge value={s.state} label={s.state === 'PRESENT' ? t('sup_dash.present_badge') : s.state === 'OUT' ? t('sup_dash.out_badge') : t('sup_dash.absent_badge')} />
                 {s.flagged && <Badge value="FLAGGED" />}
               </div>
             </Card>
           ))}
         </div>
       ) : (
-        <Empty>No employees have registered for Ward {profile.ward_no} yet.</Empty>
+        <Empty>{t('sup_dash.no_emp')} {profile.ward_no} yet.</Empty>
       )}
 
       <div className="mt-6 grid grid-cols-2 gap-3">
         <Link to="/supervisor/tasks" className="flex min-h-12 items-center justify-center rounded-xl bg-blue-600 font-semibold text-white">
-          Assign Task
+          {t('sup_dash.assign_btn')}
         </Link>
         <Link to="/supervisor/map" className="flex min-h-12 items-center justify-center rounded-xl border border-gray-300 bg-white font-semibold">
           View Map

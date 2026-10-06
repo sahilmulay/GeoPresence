@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { getPosition, resizeBlob } from '../lib/device'
 import { getDistance, GEOFENCE_RADIUS_M } from "../lib/geo"
 import { Button, ErrorNote, Spinner } from './ui'
+import { useLanguage } from '../context/LanguageContext'
 
 // GPS accuracy worse than this (metres) is saved as FLAGGED for the supervisor to review.
 const MAX_ACCURACY_M = 100
@@ -12,6 +13,7 @@ const MAX_ACCURACY_M = 100
  * type: 'CHECKIN' | 'CHECKOUT'
  */
 export default function AttendanceCapture({ type, employeeId, tasks = [], onClose, onDone }) {
+  const { t } = useLanguage()
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fileRef = useRef(null)
@@ -23,7 +25,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
   const [error, setError] = useState('')
   const [locState, setLocState] = useState('loading') // loading | ok | error
 
-  const label = type === 'CHECKIN' ? 'Check In' : 'Check Out'
+  const label = type === 'CHECKIN' ? t('cap.check_in') : t('cap.check_out')
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -155,8 +157,8 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
                 <path d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-2xl font-bold text-green-700">Attendance Recorded Successfully</h3>
-            <p className="text-gray-600">{label} saved with your photo and location.</p>
+            <h3 className="text-2xl font-bold text-green-700">{t('cap.success')}</h3>
+            <p className="text-gray-600">{label} {t('cap.saved_msg')}</p>
             <Button variant="success" className="w-full" onClick={close}>
               Done
             </Button>
@@ -176,7 +178,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
               {step === 'saving' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80">
                   <Spinner />
-                  <p className="font-semibold">Saving attendance…</p>
+                  <p className="font-semibold">{t('cap.saving')}</p>
                 </div>
               )}
             </div>
@@ -192,9 +194,9 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
             >
               {locState === 'loading' && <Spinner small />}
               <span>
-                {locState === 'ok' && 'Location ready'}
-                {locState === 'loading' && 'Getting your location…'}
-                {locState === 'error' && 'Location not available. Allow location access.'}
+                {locState === 'ok' && '{t('cap.loc_ready')}'}
+                {locState === 'loading' && '{t('cap.loc_loading')}'}
+                {locState === 'error' && '{t('cap.loc_error')}'}
               </span>
               {locState === 'error' && (
                 <button className="ml-auto font-semibold underline" onClick={fetchLocation}>
@@ -222,7 +224,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
                     onChange={(e) => e.target.files?.[0] && takePhotoFromBlob(e.target.files[0])}
                   />
                   <Button variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
-                    {camError ? 'Open Phone Camera' : 'Use phone camera app instead'}
+                    {camError ? '{t('cap.open_cam')}' : '{t('cap.use_app')}'}
                   </Button>
                 </>
               )}
@@ -232,7 +234,7 @@ export default function AttendanceCapture({ type, employeeId, tasks = [], onClos
                     Retake
                   </Button>
                   <Button variant={type === 'CHECKIN' ? 'success' : 'danger'} onClick={submit} loading={step === 'saving'}>
-                    Confirm {label}
+                    {t('cap.confirm')} {label}
                   </Button>
                 </div>
               )}

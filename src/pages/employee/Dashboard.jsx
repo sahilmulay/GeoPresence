@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { getPosition } from '../../lib/device'
@@ -23,10 +24,10 @@ export default function EmployeeDashboard() {
   const canCheckOut = latest?.check_type === 'CHECKIN'
 
   const statusText = !latest
-    ? 'You have not checked in today'
+    ? '{t('emp_dash.not_checked_in')}'
     : latest.check_type === 'CHECKIN'
-      ? `Checked in at ${fmtTime(latest.timestamp)}`
-      : `Checked out at ${fmtTime(latest.timestamp)}`
+      ? `{t('emp_dash.checked_in_at')} ${fmtTime(latest.timestamp)}`
+      : `{t('emp_dash.checked_out_at')} ${fmtTime(latest.timestamp)}`
 
   const setStatus = async (id, status) => {
     setBusyTask(id)
@@ -56,7 +57,7 @@ export default function EmployeeDashboard() {
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-2xl font-bold">Welcome {profile.name.split(' ')[0]}</h1>
+        <h1 className="text-2xl font-bold">{t('emp_dash.welcome')} {profile.name.split(' ')[0]}</h1>
         <p className="text-gray-600">Ward Number: {profile.ward_no}</p>
       </div>
 
@@ -67,13 +68,13 @@ export default function EmployeeDashboard() {
           </svg>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Your Supervisor</p>
-          <p className="font-semibold">{profile.supervisor?.name ?? 'Not assigned yet'}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('emp_dash.supervisor')}</p>
+          <p className="font-semibold">{profile.supervisor?.name ?? '{t('emp_dash.not_assigned')}'}</p>
           {!profile.supervisor && <p className="text-xs text-gray-500">A supervisor for Ward {profile.ward_no} has not registered yet.</p>}
         </div>
       </Card>
 
-      <SectionTitle>Mark Attendance</SectionTitle>
+      <SectionTitle>{t('emp_dash.mark_att')}</SectionTitle>
       <Card>
         <p className="mb-3 font-medium text-gray-700">{att.loading ? 'Loading…' : statusText}</p>
         <div className="grid grid-cols-2 gap-3">
@@ -84,10 +85,10 @@ export default function EmployeeDashboard() {
             CHECK OUT
           </Button>
         </div>
-        <p className="mt-3 text-xs text-gray-500">A selfie and your GPS location are recorded with every check in / out.</p>
+        <p className="mt-3 text-xs text-gray-500">{t('emp_dash.att_note')}</p>
       </Card>
 
-      <SectionTitle right={<span className="text-sm text-gray-500">{openTasks} open</span>}>Assigned Tasks</SectionTitle>
+      <SectionTitle right={<span className="text-sm text-gray-500">{openTasks} {t('emp_dash.open_tasks')}</span>}>{t('emp_dash.assigned_tasks')}</SectionTitle>
       <ErrorNote>{taskError || tasks.error}</ErrorNote>
       {tasks.loading ? (
         <PageLoader />
@@ -104,7 +105,7 @@ export default function EmployeeDashboard() {
                 <p className="mt-1 text-xs font-semibold text-blue-700">📍 {t.location_name}</p>
               )}
               {t.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
-                <p className="mt-1 text-xs font-semibold text-red-600">You must check in first to start this task.</p>
+                <p className="mt-1 text-xs font-semibold text-red-600">{t('emp_dash.checkin_first')}</p>
               )}
               {t.status !== 'COMPLETED' && (
                 <div className="mt-3 grid grid-cols-2 gap-3">
@@ -120,7 +121,7 @@ export default function EmployeeDashboard() {
           ))}
         </div>
       ) : (
-        <Empty>No tasks assigned yet. Your supervisor will assign work here.</Empty>
+        <Empty>{t('emp_dash.no_tasks')}</Empty>
       )}
 
       {capture && (

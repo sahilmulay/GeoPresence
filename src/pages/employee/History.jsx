@@ -1,4 +1,5 @@
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { fmtCoords, fmtDate, fmtTime, mapsLink } from '../../lib/format'
@@ -10,7 +11,7 @@ export default function EmployeeHistory() {
 
   return (
     <div>
-      <h1 className="mb-3 text-2xl font-bold">Attendance History</h1>
+      <h1 className="mb-3 text-2xl font-bold">{t('emp_hist.title')}</h1>
       <ErrorNote>{error}</ErrorNote>
       {loading ? (
         <PageLoader />
