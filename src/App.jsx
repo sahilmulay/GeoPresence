@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { LanguageProvider } from './context/LanguageContext'
 import Layout from './components/Layout'
 import { PublicOnly, RequireRole, RootRedirect } from './components/guards'
 import Login from './pages/auth/Login'
@@ -14,7 +15,8 @@ import EmployeeHistory from './pages/employee/History'
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
 
@@ -41,7 +43,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   )
 }

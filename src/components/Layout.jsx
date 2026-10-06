@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useLanguage } from '../context/LanguageContext'
 import { useAuth } from '../context/AuthContext'
 import { isDemoMode, localApi } from '../lib/api'
 
@@ -20,21 +21,26 @@ function Icon({ name }) {
 
 const NAV = {
   supervisor: [
-    { to: '/supervisor/dashboard', label: 'Home', icon: 'home' },
-    { to: '/supervisor/tasks', label: 'Tasks', icon: 'tasks' },
-    { to: '/supervisor/attendance', label: 'Attendance', icon: 'attendance' },
-    { to: '/supervisor/map', label: 'Map', icon: 'map' },
+    { to: '/supervisor/dashboard', labelKey: 'nav.home', icon: 'home' },
+    { to: '/supervisor/tasks', labelKey: 'nav.tasks', icon: 'tasks' },
+    { to: '/supervisor/attendance', labelKey: 'nav.attendance', icon: 'attendance' },
+    { to: '/supervisor/map', labelKey: 'nav.map', icon: 'map' },
   ],
   employee: [
-    { to: '/employee/dashboard', label: 'Home', icon: 'home' },
-    { to: '/employee/history', label: 'History', icon: 'history' },
+    { to: '/employee/dashboard', labelKey: 'nav.home', icon: 'home' },
+    { to: '/employee/history', labelKey: 'nav.history', icon: 'history' },
   ],
 }
 
 export default function Layout() {
   const { profile, role, signOut } = useAuth()
+  const { lang, setLang, t } = useLanguage()
   const navigate = useNavigate()
   const items = NAV[role] ?? []
+
+  const toggleLang = () => {
+    setLang(lang === 'en' ? 'mr' : 'en')
+  }
 
   const logout = async () => {
     await signOut()
@@ -68,9 +74,9 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
             <div className="leading-tight">
-              <p className="font-bold text-gray-900">GeoPresence</p>
+              <p className="font-bold text-gray-900">{t('app.title')}</p>
               <p className="text-xs text-gray-500">
-                {role === 'supervisor' ? 'Supervisor' : 'Employee'} · Ward {profile?.ward_no}
+                {role === 'supervisor' ? t('role.supervisor') : t('role.employee')} · {t('common.ward')} {profile?.ward_no}
               </p>
             </div>
           </div>
@@ -79,14 +85,22 @@ export default function Layout() {
             {items.map((i) => (
               <NavLink key={i.to} to={i.to} className={linkCls}>
                 <Icon name={i.icon} />
-                {i.label}
+                {t(i.labelKey)}
               </NavLink>
             ))}
           </nav>
 
-          <button onClick={logout} className="min-h-10 rounded-lg px-3 text-sm font-semibold text-red-600 hover:bg-red-50">
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLang}
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold hover:bg-gray-50"
+            >
+              {t('lang.switch')}
+            </button>
+            <button onClick={logout} className="min-h-10 rounded-lg px-3 text-sm font-semibold text-red-600 hover:bg-red-50">
+              {t('nav.logout')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -102,7 +116,7 @@ export default function Layout() {
           {items.map((i) => (
             <NavLink key={i.to} to={i.to} className={linkCls}>
               <Icon name={i.icon} />
-              {i.label}
+              {t(i.labelKey)}
             </NavLink>
           ))}
         </div>
