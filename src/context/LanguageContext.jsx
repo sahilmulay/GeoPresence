@@ -128,6 +128,10 @@ const dictionary = {
     'cap.use_app': 'Use phone camera app instead',
     'cap.retake': 'Retake',
     'cap.confirm': 'Confirm',
+    'cap.liveness_prompt': 'Please blink your eyes once to verify liveness',
+    'cap.liveness_verified': 'Liveness verified! Blink detected',
+    'cap.liveness_title': 'Liveness Verification',
+    'cap.blink_btn': 'I Blinked',
   },
   mr: {
     'lang.switch': 'English',
@@ -256,6 +260,10 @@ const dictionary = {
     'cap.use_app': 'त्याऐवजी फोनचा कॅमेरा अ‍ॅप वापरा',
     'cap.retake': 'पुन्हा घ्या',
     'cap.confirm': 'नक्की करा',
+    'cap.liveness_prompt': 'कृपया सजीवतेची पडताळणी करण्यासाठी एकदा डोळे मिचकावा',
+    'cap.liveness_verified': 'पडताळणी यशस्वी! डोळे मिचकावणे नोंदवले',
+    'cap.liveness_title': 'सजीवता पडताळणी (Liveness Check)',
+    'cap.blink_btn': 'डोळे मिचकावले',
   }
 }
 

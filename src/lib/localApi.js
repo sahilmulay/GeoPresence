@@ -351,7 +351,7 @@ export const localApi = {
     return delay(sortDesc(rows, 'timestamp'))
   },
 
-  async addAttendance({ employee_id, blob, latitude, longitude, check_type, status }) {
+  async addAttendance({ employee_id, blob, latitude, longitude, check_type, status, location_name, target_lat, target_lng, is_live }) {
     const photo_url = await blobToDataUrl(blob)
     const db = load()
     const ts = new Date().toISOString()
@@ -364,9 +364,10 @@ export const localApi = {
       timestamp: ts,
       check_type,
       status,
-      location_name,
-      target_lat,
-      target_lng,
+      location_name: location_name || null,
+      target_lat: target_lat ?? null,
+      target_lng: target_lng ?? null,
+      is_live: is_live ?? true,
       created_at: ts,
     })
     save(db)
