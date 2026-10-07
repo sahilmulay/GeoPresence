@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useAuth } from '../../context/AuthContext'
@@ -21,7 +21,7 @@ L.Icon.Default.mergeOptions({
 // Pune coordinates as default center
 const DEFAULT_CENTER = [18.5204, 73.8567]
 
-function LocationPicker({ position, setPosition }) {
+function LocationPicker({ position, setPosition, radius = 50 }) {
   const map = useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng])
@@ -30,18 +30,28 @@ function LocationPicker({ position, setPosition }) {
   
   useEffect(() => {
     if (position) {
-      map.flyTo(position, 15)
+      map.flyTo(position, 16)
     }
   }, [position, map])
 
-  return position ? <Marker position={position} /> : null
+  if (!position) return null
+  return (
+    <>
+      <Marker position={position} />
+      <Circle
+        center={position}
+        radius={Number(radius) || 50}
+        pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.25 }}
+      />
+    </>
+  )
 }
 
 export default function SupervisorTasks() {
   const { profile } = useAuth()
   const { t } = useLanguage()
   const { data, loading, error, reload } = useWardData(15000)
-  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', status: 'PENDING', location_name: '' })
+  const [form, setForm] = useState({ title: '', description: '', assigned_to: '', status: 'PENDING', location_name: '', radius_m: 50 })
   const [targetPos, setTargetPos] = useState(null)
   const [busy, setBusy] = useState(false)
   const [fetchingLoc, setFetchingLoc] = useState(false)
@@ -86,6 +96,7 @@ export default function SupervisorTasks() {
         location_name: form.location_name.trim(),
         target_lat: targetPos?.[0] ?? null,
         target_lng: targetPos?.[1] ?? null,
+        radius_m: Number(form.radius_m) || 50,
       }
 
       if (form.assigned_to === 'ALL') {
@@ -99,7 +110,7 @@ export default function SupervisorTasks() {
         setSuccess(`Task "${baseTask.title}" assigned to ${who}`)
       }
 
-      setForm({ title: '', description: '', assigned_to: form.assigned_to, status: 'PENDING', location_name: '' })
+      setForm({ title: '', description: '', assigned_to: form.assigned_to, status: 'PENDING', location_name: '', radius_m: 50 })
       setTargetPos(null)
       await reload(true)
     } catch (err) {
@@ -141,16 +152,29 @@ export default function SupervisorTasks() {
               </button>
             </div>
             <p className="text-xs text-gray-500">{t('tasks.geo_desc')}</p>
-            <Field label={t('tasks.loc_name')}>
-              <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder={t('tasks.loc_name_ph')} />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('tasks.loc_name')}>
+                <input className={inputCls} value={form.location_name} onChange={set('location_name')} placeholder={t('tasks.loc_name_ph')} />
+              </Field>
+              <Field label="Geofence Radius (m)">
+                <input 
+                  type="number" 
+                  min="10" 
+                  max="500" 
+                  step="5" 
+                  className={inputCls} 
+                  value={form.radius_m} 
+                  onChange={set('radius_m')} 
+                />
+              </Field>
+            </div>
             <div className="h-48 w-full overflow-hidden rounded-md border border-gray-300">
               <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: '100%', width: '100%' }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <LocationPicker position={targetPos} setPosition={setTargetPos} />
+                <LocationPicker position={targetPos} setPosition={setTargetPos} radius={form.radius_m} />
               </MapContainer>
             </div>
-            {targetPos && <p className="text-xs text-green-700">{t('tasks.loc_selected')}</p>}
+            {targetPos && <p className="text-xs text-green-700">{t('tasks.loc_selected')} ({form.radius_m || 50}m radius set)</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

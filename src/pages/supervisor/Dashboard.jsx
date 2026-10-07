@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
+import { api } from '../../lib/api'
+import { useData } from '../../lib/useData'
 import { todaySummary, useWardData } from '../../lib/wardData'
 import { fmtTime } from '../../lib/format'
 import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, SectionTitle, LocationLabel } from '../../components/ui'
@@ -18,6 +20,7 @@ export default function SupervisorDashboard() {
   const { profile } = useAuth()
   const { data, loading, error } = useWardData()
   const { t } = useLanguage()
+  const alerts = useData(() => api.listAlerts?.({ wardNo: profile.ward_no }), [profile.ward_no], { poll: 4000 })
 
   if (loading) return <PageLoader />
   const { employees = [], attendance = [], tasks = [] } = data ?? {}
@@ -37,6 +40,47 @@ export default function SupervisorDashboard() {
         <h1 className="text-2xl font-bold">Welcome {(profile.name || 'Supervisor').split(' ')[0]}</h1>
         <p className="text-gray-600">You are responsible for Ward {profile.ward_no}</p>
       </div>
+
+      {alerts.data?.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {alerts.data.map((alert) => (
+            <div key={alert.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border-2 border-red-500 bg-red-50 p-4 shadow-sm animate-pulse">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🚨</span>
+                <div>
+                  <p className="font-bold text-red-900 text-sm">
+                    GEOFENCE BREACH ALERT: {alert.employee_name}
+                  </p>
+                  <p className="text-xs text-red-800">
+                    Worker moved <b>{alert.distance}m away</b> from designated location <b>{alert.task_title}</b> (Exceeded 50m limit).
+                  </p>
+                  <p className="text-[11px] text-red-600 mt-0.5">
+                    Detected at {fmtTime(alert.timestamp)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <Link
+                  to={`/supervisor/map?taskId=${alert.task_id}`}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 shadow-sm"
+                >
+                  📍 View on Live Map
+                </Link>
+                <button
+                  onClick={async () => {
+                    await api.dismissAlert?.(alert.id)
+                    alerts.reload(true)
+                  }}
+                  className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <ErrorNote>{error}</ErrorNote>
 
       <div className="grid grid-cols-2 gap-3">

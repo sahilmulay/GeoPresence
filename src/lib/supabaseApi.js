@@ -108,7 +108,7 @@ export const supabaseApi = {
     }))
   },
 
-  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng }) {
+  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng, radius_m = 50 }) {
     const { error } = await supabase
       .from('tasks')
       .insert({
@@ -121,6 +121,7 @@ export const supabaseApi = {
         location_name: location_name || null,
         target_lat: target_lat ?? null,
         target_lng: target_lng ?? null,
+        radius_m: Number(radius_m) || 50,
       })
     fail(error)
   },
@@ -128,5 +129,67 @@ export const supabaseApi = {
   async updateTaskStatus(id, status) {
     const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
     fail(error)
+  },
+
+  async logTracking({ taskId, employeeId, latitude, longitude, distance, insideGeofence }) {
+    try {
+      await supabase.from('task_tracking').insert({
+        task_id: taskId,
+        employee_id: employeeId,
+        latitude,
+        longitude,
+        distance: Math.round(distance),
+        inside_geofence: insideGeofence,
+      })
+    } catch (e) {
+      console.warn('logTracking to supabase skipped:', e.message)
+    }
+  },
+
+  async listTracking({ taskId } = {}) {
+    try {
+      let q = supabase.from('task_tracking').select('*').order('created_at', { ascending: true })
+      if (taskId) q = q.eq('task_id', taskId)
+      const { data } = await q
+      return data ?? []
+    } catch {
+      return []
+    }
+  },
+
+  async triggerBreachAlert({ taskId, employeeId, employeeName, taskTitle, distance, latitude, longitude }) {
+    try {
+      const { data } = await supabase.from('task_alerts').insert({
+        task_id: taskId,
+        employee_id: employeeId,
+        employee_name: employeeName,
+        task_title: taskTitle,
+        distance: Math.round(distance),
+        latitude,
+        longitude,
+        resolved: false,
+      }).select().single()
+      return data
+    } catch (e) {
+      console.warn('triggerBreachAlert to supabase skipped:', e.message)
+      return null
+    }
+  },
+
+  async listAlerts() {
+    try {
+      const { data } = await supabase.from('task_alerts').select('*').eq('resolved', false).order('created_at', { ascending: false })
+      return data ?? []
+    } catch {
+      return []
+    }
+  },
+
+  async dismissAlert(alertId) {
+    try {
+      await supabase.from('task_alerts').update({ resolved: true }).eq('id', alertId)
+    } catch (e) {
+      console.warn('dismissAlert skipped:', e.message)
+    }
   },
 }

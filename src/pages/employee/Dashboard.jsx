@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
@@ -18,7 +18,7 @@ export default function EmployeeDashboard() {
   const [taskError, setTaskError] = useState('')
 
   const att = useData(() => api.listAttendance({ employeeId: profile.id }), [profile.id])
-  const tasks = useData(() => api.listTasks({ employeeId: profile.id }), [profile.id], { poll: 15000 })
+  const tasks = useData(() => api.listTasks({ employeeId: profile.id }), [profile.id], { poll: 10000 })
 
   const todays = (att.data ?? []).filter((a) => isToday(a.timestamp))
   const latest = todays[0] // list is sorted newest first
@@ -36,6 +36,91 @@ export default function EmployeeDashboard() {
       ? `${t('emp_dash.checked_in_at')} ${fmtTime(latest.timestamp)}`
       : `${t('emp_dash.checked_out_at')} ${fmtTime(latest.timestamp)}`
 
+  // Live Geofence Tracking for Active Task
+  const activeTask = tasks.data?.find((tk) => tk.status === 'IN_PROGRESS' && tk.target_lat && tk.target_lng)
+  const [liveDistance, setLiveDistance] = useState(null)
+  const [isOutsideZone, setIsOutsideZone] = useState(false)
+  const [wakeLockActive, setWakeLockActive] = useState(false)
+  const outCountRef = useRef(0)
+  const lastAlertTimeRef = useRef(0)
+  const lastLoggedTimeRef = useRef(0)
+
+  useEffect(() => {
+    if (!activeTask) {
+      setLiveDistance(null)
+      setIsOutsideZone(false)
+      return
+    }
+
+    let wakeLock = null
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then((wl) => {
+        wakeLock = wl
+        setWakeLockActive(true)
+      }).catch(() => {})
+    }
+
+    const radius = Number(activeTask.radius_m) || GEOFENCE_RADIUS_M
+
+    const watchId = navigator.geolocation?.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords
+        const dist = getDistance(latitude, longitude, activeTask.target_lat, activeTask.target_lng)
+        const roundedDist = Math.round(dist)
+        setLiveDistance(roundedDist)
+
+        const isOut = dist > (radius + 10) // 10m buffer for GPS jitter
+        setIsOutsideZone(isOut)
+
+        const now = Date.now()
+        // Log breadcrumb every 15 seconds
+        if (now - lastLoggedTimeRef.current > 15000) {
+          lastLoggedTimeRef.current = now
+          api.logTracking?.({
+            taskId: activeTask.id,
+            employeeId: profile.id,
+            latitude,
+            longitude,
+            distance: roundedDist,
+            insideGeofence: !isOut,
+          })
+        }
+
+        // Breach detection: 2-ping confirmation rule
+        if (isOut) {
+          outCountRef.current += 1
+          if (outCountRef.current >= 2 && now - lastAlertTimeRef.current > 60000) {
+            lastAlertTimeRef.current = now
+            api.triggerBreachAlert?.({
+              taskId: activeTask.id,
+              employeeId: profile.id,
+              employeeName: profile.name,
+              taskTitle: activeTask.title,
+              distance: roundedDist,
+              latitude,
+              longitude,
+            })
+            if ('speechSynthesis' in window) {
+              const utter = new SpeechSynthesisUtterance('Alert: You have moved outside the assigned work zone.')
+              utter.lang = 'en-IN'
+              window.speechSynthesis.speak(utter)
+            }
+          }
+        } else {
+          outCountRef.current = 0
+        }
+      },
+      (err) => console.warn('Live tracking GPS error:', err),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
+    )
+
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId)
+      if (wakeLock) wakeLock.release().catch(() => {})
+      setWakeLockActive(false)
+    }
+  }, [activeTask?.id, activeTask?.target_lat, activeTask?.target_lng, activeTask?.radius_m, profile.id, profile.name])
+
   const setStatus = async (id, status) => {
     setBusyTask(id)
     setTaskError('')
@@ -43,10 +128,11 @@ export default function EmployeeDashboard() {
       if (status === 'IN_PROGRESS') {
         const task = tasks.data?.find((tk) => tk.id === id)
         if (task?.target_lat && task?.target_lng) {
+          const radius = Number(task.radius_m) || GEOFENCE_RADIUS_M
           const pos = await getPosition()
           const dist = getDistance(pos.latitude, pos.longitude, task.target_lat, task.target_lng)
-          if (dist > GEOFENCE_RADIUS_M) {
-            throw new Error(`Geofence Error: You are ${Math.round(dist)}m away. You must be within ${GEOFENCE_RADIUS_M}m of the task location to start work.`)
+          if (dist > radius) {
+            throw new Error(`Geofence Error: You are ${Math.round(dist)}m away. You must be within ${radius}m of the task location to start work.`)
           }
         }
       }
@@ -98,6 +184,37 @@ export default function EmployeeDashboard() {
 
       <SectionTitle right={<span className="text-sm text-gray-500">{openTasks} {t('emp_dash.open_tasks')}</span>}>{t('emp_dash.assigned_tasks')}</SectionTitle>
       <ErrorNote>{taskError || tasks.error}</ErrorNote>
+
+      {activeTask && (
+        <div className={`mb-4 rounded-xl border p-4 shadow-sm transition-colors ${
+          isOutsideZone ? 'border-red-400 bg-red-50 text-red-950' : 'border-green-400 bg-green-50 text-green-950'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`h-3 w-3 rounded-full ${isOutsideZone ? 'animate-ping bg-red-600' : 'animate-pulse bg-green-600'}`} />
+              <p className="font-bold text-sm">
+                {isOutsideZone ? '🚨 Geofence Breach Warning!' : '🟢 Live Duty Geofencing Active'}
+              </p>
+            </div>
+            {liveDistance !== null && (
+              <span className={`rounded-full px-3 py-0.5 text-xs font-bold border ${
+                isOutsideZone ? 'border-red-300 bg-white text-red-700' : 'border-green-300 bg-white text-green-700'
+              }`}>
+                {liveDistance}m from pin (Max {activeTask.radius_m || 50}m)
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs">
+            {isOutsideZone
+              ? `You are ${liveDistance}m away from ${activeTask.location_name || 'assigned location'}. You must stay within ${activeTask.radius_m || 50}m. Your supervisor has been alerted!`
+              : `Work in progress at ${activeTask.location_name || 'assigned location'}. Live GPS coordinates are being logged.`}
+          </p>
+          {wakeLockActive && (
+            <p className="mt-1 text-[11px] opacity-75">📱 Screen keep-awake active for continuous GPS accuracy</p>
+          )}
+        </div>
+      )}
+
       {tasks.loading ? (
         <PageLoader />
       ) : tasks.data?.length ? (

@@ -123,13 +123,17 @@ function load() {
   }
   const today = new Date().toDateString()
   if (!db) {
-    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), session: null, seedDay: today }
+    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), tracking: [], alerts: [], session: null, seedDay: today }
     save(db)
-  } else if (db.seedDay !== today) {
-    // Keep demo data fresh: re-date the seeded attendance so "Present Today" is never empty.
-    db.attendance = [...seedAttendance(), ...db.attendance.filter((a) => !a.id.startsWith('seed-'))]
-    db.seedDay = today
-    save(db)
+  } else {
+    db.tracking = db.tracking || []
+    db.alerts = db.alerts || []
+    if (db.seedDay !== today) {
+      // Keep demo data fresh: re-date the seeded attendance so "Present Today" is never empty.
+      db.attendance = [...seedAttendance(), ...db.attendance.filter((a) => !a.id.startsWith('seed-'))]
+      db.seedDay = today
+      save(db)
+    }
   }
   return db
 }
@@ -260,7 +264,7 @@ export const localApi = {
     return delay(sortDesc(rows, 'created_at'))
   },
 
-  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng }) {
+  async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng, radius_m = 50 }) {
     const db = load()
     db.tasks.push({
       id: uid(),
@@ -273,6 +277,7 @@ export const localApi = {
       location_name: location_name || null,
       target_lat: target_lat ?? null,
       target_lng: target_lng ?? null,
+      radius_m: Number(radius_m) || 50,
       created_at: new Date().toISOString(),
     })
     save(db)
@@ -283,6 +288,67 @@ export const localApi = {
     const db = load()
     const t = db.tasks.find((x) => x.id === id)
     if (t) t.status = status
+    save(db)
+    return delay()
+  },
+
+  async logTracking({ taskId, employeeId, latitude, longitude, distance, insideGeofence }) {
+    const db = load()
+    db.tracking = db.tracking || []
+    const entry = {
+      id: uid(),
+      task_id: taskId,
+      employee_id: employeeId,
+      latitude,
+      longitude,
+      distance: Math.round(distance),
+      inside_geofence: insideGeofence,
+      timestamp: new Date().toISOString(),
+    }
+    db.tracking.push(entry)
+    if (db.tracking.length > 500) db.tracking = db.tracking.slice(-500)
+    save(db)
+    return delay(entry)
+  },
+
+  async listTracking({ taskId, employeeId } = {}) {
+    const db = load()
+    let list = db.tracking || []
+    if (taskId) list = list.filter((t) => t.task_id === taskId)
+    if (employeeId) list = list.filter((t) => t.employee_id === employeeId)
+    return delay(list)
+  },
+
+  async triggerBreachAlert({ taskId, employeeId, employeeName, taskTitle, distance, latitude, longitude }) {
+    const db = load()
+    db.alerts = db.alerts || []
+    const alert = {
+      id: uid(),
+      task_id: taskId,
+      employee_id: employeeId,
+      employee_name: employeeName || 'Employee',
+      task_title: taskTitle || 'Assigned Task',
+      distance: Math.round(distance),
+      latitude,
+      longitude,
+      timestamp: new Date().toISOString(),
+      resolved: false,
+    }
+    db.alerts.unshift(alert)
+    if (db.alerts.length > 50) db.alerts = db.alerts.slice(0, 50)
+    save(db)
+    return delay(alert)
+  },
+
+  async listAlerts({ wardNo } = {}) {
+    const db = load()
+    return delay((db.alerts || []).filter((a) => !a.resolved))
+  },
+
+  async dismissAlert(alertId) {
+    const db = load()
+    const a = (db.alerts || []).find((x) => x.id === alertId)
+    if (a) a.resolved = true
     save(db)
     return delay()
   },

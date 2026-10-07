@@ -13,7 +13,7 @@ export function getDistance(lat1, lon1, lat2, lon2) {
   return R * c // in metres
 }
 
-export const GEOFENCE_RADIUS_M = 500
+export const GEOFENCE_RADIUS_M = 50
 
 export async function reverseGeocode(lat, lng) {
   try {

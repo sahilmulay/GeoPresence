@@ -48,6 +48,31 @@ create table if not exists public.tasks (
   location_name text,
   target_lat   double precision,
   target_lng   double precision,
+  radius_m     integer not null default 50,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.task_tracking (
+  id           uuid primary key default gen_random_uuid(),
+  task_id      uuid not null references public.tasks(id) on delete cascade,
+  employee_id  uuid not null references public.employees(id) on delete cascade,
+  latitude     double precision not null,
+  longitude    double precision not null,
+  distance     integer not null,
+  inside_geofence boolean not null default true,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.task_alerts (
+  id           uuid primary key default gen_random_uuid(),
+  task_id      uuid references public.tasks(id) on delete set null,
+  employee_id  uuid references public.employees(id) on delete set null,
+  employee_name text not null,
+  task_title   text not null,
+  distance     integer not null,
+  latitude     double precision,
+  longitude    double precision,
+  resolved     boolean not null default false,
   created_at   timestamptz not null default now()
 );
 
@@ -55,6 +80,8 @@ create index if not exists attendance_employee_ts_idx on public.attendance (empl
 create index if not exists tasks_assigned_to_idx on public.tasks (assigned_to);
 create index if not exists tasks_ward_idx on public.tasks (ward_no);
 create index if not exists employees_ward_idx on public.employees (ward_no);
+create index if not exists task_tracking_task_idx on public.task_tracking (task_id, created_at asc);
+create index if not exists task_alerts_resolved_idx on public.task_alerts (resolved, created_at desc);
 
 -- ---------------------------------------------------------------------
 -- Auto-create the supervisor / employee row when someone registers.
