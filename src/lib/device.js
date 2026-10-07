@@ -19,25 +19,35 @@ export const blobToDataUrl = (blob) =>
     r.readAsDataURL(blob)
   })
 
-// Promise wrapper around the browser Geolocation API.
+// Promise wrapper around the browser Geolocation API with fallback
 export function getPosition() {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) return reject(new Error('Location is not supported on this device'))
-    navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        }),
-      (err) => {
-        const msg =
-          err.code === 1
-            ? 'Location permission denied. Please allow location access and try again.'
-            : 'Could not get your location. Please try again.'
-        reject(new Error(msg))
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    )
+
+    const tryGet = (highAccuracy) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          }),
+        (err) => {
+          if (highAccuracy && err.code !== 1) {
+            // Fall back to standard/network accuracy (crucial for laptops/desktops without satellite GPS)
+            tryGet(false)
+            return
+          }
+          const msg =
+            err.code === 1
+              ? 'Location permission denied. Please allow location access in your browser or Mac settings.'
+              : 'Could not get your GPS location. Please ensure Location Services are enabled, or simply tap directly on the map to pin your location.'
+          reject(new Error(msg))
+        },
+        { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 6000 : 10000, maximumAge: highAccuracy ? 0 : 60000 },
+      )
+    }
+
+    tryGet(true)
   })
 }
