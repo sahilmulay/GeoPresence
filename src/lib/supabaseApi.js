@@ -8,6 +8,16 @@ export const isSupabaseConfigured = Boolean(url && key)
 
 export const supabase = isSupabaseConfigured ? createClient(url, key) : null
 
+export const alertRealtimeChannel = supabase
+  ? supabase.channel('geofence_breach_alerts', {
+      config: { broadcast: { ack: true, self: true } },
+    })
+  : null
+
+if (alertRealtimeChannel) {
+  alertRealtimeChannel.subscribe()
+}
+
 const fail = (error) => {
   if (error) throw new Error(error.message || 'Something went wrong')
 }
@@ -179,67 +189,127 @@ export const supabaseApi = {
       employee_name: employeeName || 'Employee',
       task_title: taskTitle || 'Assigned Task',
       distance: Math.round(distance),
-      latitude,
-      longitude,
+      latitude: latitude != null ? Number(latitude) : null,
+      longitude: longitude != null ? Number(longitude) : null,
       timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       resolved: false,
     }
 
-    // 1. Broadcast over Supabase Realtime WebSocket (works across all devices instantly!)
-    if (supabase) {
+    // 1. Broadcast over Supabase Realtime WebSocket (cross-device)
+    if (alertRealtimeChannel) {
       try {
-        const channel = supabase.channel('geofence_breach_alerts')
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            channel.send({
-              type: 'broadcast',
-              event: 'BREACH',
-              payload: alertData,
-            })
-          }
+        alertRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'BREACH',
+          payload: alertData,
         })
       } catch (err) {
         console.warn('Realtime broadcast error:', err)
       }
     }
 
-    // 2. Try saving to task_alerts table
+    // 2. Broadcast across tabs/windows on same device
     try {
-      await supabase.from('task_alerts').insert(alertData)
-    } catch (e) {
-      console.warn('triggerBreachAlert to supabase skipped:', e.message)
+      const bc = new BroadcastChannel('geofence_breach_alerts')
+      bc.postMessage(alertData)
+      bc.close()
+    } catch {}
+
+    // 3. Store in localStorage for instant storage event detection
+    try {
+      localStorage.setItem('gp_latest_breach_alert', JSON.stringify(alertData))
+    } catch {}
+
+    // 4. Save to task_alerts table (using schema columns: created_at, resolved)
+    if (supabase) {
+      try {
+        await supabase.from('task_alerts').insert({
+          id: alertData.id,
+          task_id: taskId,
+          employee_id: employeeId,
+          employee_name: alertData.employee_name,
+          task_title: alertData.task_title,
+          distance: alertData.distance,
+          latitude: alertData.latitude,
+          longitude: alertData.longitude,
+          resolved: false,
+          created_at: alertData.created_at,
+        })
+      } catch (e) {
+        console.warn('triggerBreachAlert DB insert skipped:', e.message)
+      }
     }
 
     return alertData
   },
 
   subscribeAlerts(cb) {
-    if (!supabase) return () => {}
-    const channel = supabase.channel('geofence_breach_alerts')
-    channel
-      .on('broadcast', { event: 'BREACH' }, ({ payload }) => {
-        cb(payload)
+    const cleanups = []
+
+    // 1. Supabase Realtime broadcast listener
+    if (alertRealtimeChannel) {
+      const sub = alertRealtimeChannel.on('broadcast', { event: 'BREACH' }, ({ payload }) => {
+        if (payload) cb(payload)
       })
-      .subscribe()
+      cleanups.push(() => {
+        // don't remove channel, just ignore
+      })
+    }
+
+    // 2. Cross-tab BroadcastChannel
+    try {
+      const bc = new BroadcastChannel('geofence_breach_alerts')
+      bc.onmessage = (e) => {
+        if (e.data) cb(e.data)
+      }
+      cleanups.push(() => bc.close())
+    } catch {}
+
+    // 3. Storage event listener (cross-window on same host)
+    const storageHandler = (e) => {
+      if (e.key === 'gp_latest_breach_alert' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue)
+          if (item) cb(item)
+        } catch {}
+      }
+    }
+    window.addEventListener('storage', storageHandler)
+    cleanups.push(() => window.removeEventListener('storage', storageHandler))
+
     return () => {
-      supabase.removeChannel(channel)
+      cleanups.forEach((fn) => fn())
     }
   },
 
   async listAlerts() {
+    if (!supabase) return []
     try {
-      const { data } = await supabase.from('task_alerts').select('*').eq('resolved', false).order('created_at', { ascending: false })
-      return data ?? []
+      const { data, error } = await supabase
+        .from('task_alerts')
+        .select('*')
+        .eq('resolved', false)
+        .order('created_at', { ascending: false })
+      if (error) {
+        return []
+      }
+      return (data ?? []).map((a) => ({
+        ...a,
+        timestamp: a.created_at || a.timestamp,
+      }))
     } catch {
       return []
     }
   },
 
   async dismissAlert(alertId) {
-    try {
-      await supabase.from('task_alerts').update({ resolved: true }).eq('id', alertId)
-    } catch (e) {
-      console.warn('dismissAlert skipped:', e.message)
+    if (supabase) {
+      try {
+        await supabase.from('task_alerts').update({ resolved: true }).eq('id', alertId)
+      } catch (e) {
+        console.warn('dismissAlert skipped:', e.message)
+      }
     }
   },
 }

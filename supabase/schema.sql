@@ -196,6 +196,18 @@ create policy "tasks: supervisor deletes own ward" on public.tasks
   for delete to authenticated
   using (ward_no = public.my_ward());
 
+-- task_tracking policies
+alter table public.task_tracking enable row level security;
+drop policy if exists "task_tracking: authenticated read and insert" on public.task_tracking;
+create policy "task_tracking: authenticated read and insert" on public.task_tracking
+  for all to authenticated using (true) with check (true);
+
+-- task_alerts policies
+alter table public.task_alerts enable row level security;
+drop policy if exists "task_alerts: authenticated read and write" on public.task_alerts;
+create policy "task_alerts: authenticated read and write" on public.task_alerts
+  for all to authenticated using (true) with check (true);
+
 -- ---------------------------------------------------------------------
 -- Storage: public "selfies" bucket, users may only upload into their own folder
 -- ---------------------------------------------------------------------

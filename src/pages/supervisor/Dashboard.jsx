@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -7,6 +7,8 @@ import { useData } from '../../lib/useData'
 import { todaySummary, useWardData } from '../../lib/wardData'
 import { fmtTime } from '../../lib/format'
 import { Avatar, Badge, Card, Empty, ErrorNote, PageLoader, SectionTitle, LocationLabel } from '../../components/ui'
+
+const ACTIVE_ALERTS_KEY = 'gp_supervisor_active_alerts'
 
 function Stat({ label, value, tone = 'text-gray-900' }) {
   return (
@@ -21,21 +23,75 @@ export default function SupervisorDashboard() {
   const { profile } = useAuth()
   const { data, loading, error } = useWardData()
   const { t } = useLanguage()
-  const alerts = useData(() => api.listAlerts?.({ wardNo: profile.ward_no }), [profile.ward_no], { poll: 3000 })
-  const [liveAlerts, setLiveAlerts] = useState([])
+
+  // Load initial alerts from localStorage so they survive page refreshes
+  const [liveAlerts, setLiveAlerts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_ALERTS_KEY)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const updateAlerts = useCallback((incoming) => {
+    if (!incoming) return
+    setLiveAlerts((prev) => {
+      const list = Array.isArray(incoming) ? incoming : [incoming]
+      const map = new Map()
+      // Preserve existing unresolved alerts
+      prev.filter((a) => !a.resolved).forEach((a) => map.set(a.id, a))
+      // Merge incoming alerts
+      list.filter((a) => !a.resolved).forEach((a) => map.set(a.id, a))
+
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp)
+      )
+      try {
+        localStorage.setItem(ACTIVE_ALERTS_KEY, JSON.stringify(merged))
+      } catch {}
+      return merged
+    })
+  }, [])
+
+  // Poll database for alerts
+  const alerts = useData(
+    () => api.listAlerts?.({ wardNo: profile.ward_no }),
+    [profile.ward_no],
+    { poll: 4000 }
+  )
 
   useEffect(() => {
-    if (alerts.data) {
-      setLiveAlerts(alerts.data)
+    if (alerts.data && alerts.data.length > 0) {
+      updateAlerts(alerts.data)
     }
-  }, [alerts.data])
+  }, [alerts.data, updateAlerts])
 
+  // Real-time broadcast listener
   useEffect(() => {
     const unsub = api.subscribeAlerts?.((newAlert) => {
-      setLiveAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)])
+      if (newAlert) {
+        updateAlerts(newAlert)
+      }
     })
     return () => unsub?.()
-  }, [])
+  }, [updateAlerts])
+
+  const handleDismiss = async (alertId) => {
+    setLiveAlerts((prev) => {
+      const remaining = prev.filter((a) => a.id !== alertId)
+      try {
+        localStorage.setItem(ACTIVE_ALERTS_KEY, JSON.stringify(remaining))
+      } catch {}
+      return remaining
+    })
+    try {
+      await api.dismissAlert?.(alertId)
+      alerts.reload(true)
+    } catch (e) {
+      console.warn('Failed to dismiss alert:', e)
+    }
+  }
 
   if (loading) return <PageLoader />
   const { employees = [], attendance = [], tasks = [] } = data ?? {}
@@ -56,41 +112,52 @@ export default function SupervisorDashboard() {
         <p className="text-gray-600">You are responsible for Ward {profile.ward_no}</p>
       </div>
 
+      {/* CONTINUOUS FLASHING GEOFENCE BREACH WARNING ON SUPERVISOR HOME */}
       {liveAlerts.length > 0 && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-5 space-y-3">
           {liveAlerts.map((alert) => (
-            <div key={alert.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border-2 border-red-500 bg-red-50 p-4 shadow-sm animate-pulse">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">🚨</span>
-                <div>
-                  <p className="font-bold text-red-900 text-sm">
-                    GEOFENCE BREACH ALERT: {alert.employee_name}
-                  </p>
-                  <p className="text-xs text-red-800">
-                    Worker moved <b>{alert.distance}m away</b> from designated location <b>{alert.task_title}</b> (Exceeded 50m limit).
-                  </p>
-                  <p className="text-[11px] text-red-600 mt-0.5">
-                    Detected at {fmtTime(alert.timestamp)}
-                  </p>
+            <div
+              key={alert.id}
+              className="relative overflow-hidden rounded-2xl border-4 border-red-600 bg-red-100 p-4 shadow-xl ring-4 ring-red-300 animate-pulse transition-all"
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white shadow-md animate-bounce">
+                    <span className="text-2xl">🚨</span>
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-block rounded-md bg-red-600 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        GEOFENCE BREACH ALERT
+                      </span>
+                      <span className="text-xs font-bold text-red-700">
+                        {fmtTime(alert.timestamp || alert.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-red-950">
+                      {alert.employee_name || 'Worker'} has moved OUTSIDE designated 50m zone!
+                    </p>
+                    <p className="text-xs font-semibold text-red-900">
+                      Task: <b>{alert.task_title || 'Assigned Task'}</b> · Distance from zone: <b className="text-red-950 underline">{alert.distance} meters</b> (Exceeded 50m boundary)
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 self-end md:self-auto">
-                <Link
-                  to={`/supervisor/map?taskId=${alert.task_id}`}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 shadow-sm"
-                >
-                  📍 View on Live Map
-                </Link>
-                <button
-                  onClick={async () => {
-                    await api.dismissAlert?.(alert.id)
-                    setLiveAlerts((prev) => prev.filter((a) => a.id !== alert.id))
-                    alerts.reload(true)
-                  }}
-                  className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-                >
-                  Dismiss
-                </button>
+
+                <div className="flex items-center gap-2 self-end md:self-auto pt-1 md:pt-0">
+                  <Link
+                    to={`/supervisor/map?taskId=${alert.task_id}`}
+                    className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-red-700 active:scale-95 transition-transform"
+                  >
+                    <span>📍</span>
+                    <span>View on Live Map</span>
+                  </Link>
+                  <button
+                    onClick={() => handleDismiss(alert.id)}
+                    className="rounded-xl border border-red-400 bg-white px-3.5 py-2 text-xs font-bold text-red-800 hover:bg-red-50 shadow-sm"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             </div>
           ))}

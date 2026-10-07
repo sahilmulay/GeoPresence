@@ -329,32 +329,64 @@ export const localApi = {
       employee_name: employeeName || 'Employee',
       task_title: taskTitle || 'Assigned Task',
       distance: Math.round(distance),
-      latitude,
-      longitude,
+      latitude: latitude != null ? Number(latitude) : null,
+      longitude: longitude != null ? Number(longitude) : null,
       timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       resolved: false,
     }
     db.alerts.unshift(alert)
     if (db.alerts.length > 50) db.alerts = db.alerts.slice(0, 50)
     save(db)
+
+    // Broadcast across windows via BroadcastChannel
+    try {
+      const bc = new BroadcastChannel('geofence_breach_alerts')
+      bc.postMessage(alert)
+      bc.close()
+    } catch {}
+
+    // Broadcast via dedicated localStorage key
+    try {
+      localStorage.setItem('gp_latest_breach_alert', JSON.stringify(alert))
+    } catch {}
+
     window.dispatchEvent(new CustomEvent('gp_breach_alert', { detail: alert }))
     return delay(alert)
   },
 
   subscribeAlerts(cb) {
+    const cleanups = []
+
     const handler = (e) => cb(e.detail)
     window.addEventListener('gp_breach_alert', handler)
+    cleanups.push(() => window.removeEventListener('gp_breach_alert', handler))
+
+    try {
+      const bc = new BroadcastChannel('geofence_breach_alerts')
+      bc.onmessage = (e) => {
+        if (e.data) cb(e.data)
+      }
+      cleanups.push(() => bc.close())
+    } catch {}
+
     const storageHandler = (e) => {
-      if (e.key === KEY) {
+      if (e.key === 'gp_latest_breach_alert' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue)
+          if (item) cb(item)
+        } catch {}
+      } else if (e.key === KEY) {
         const db = load()
-        const latest = (db.alerts || [])[0]
+        const latest = (db.alerts || []).filter((a) => !a.resolved)[0]
         if (latest) cb(latest)
       }
     }
     window.addEventListener('storage', storageHandler)
+    cleanups.push(() => window.removeEventListener('storage', storageHandler))
+
     return () => {
-      window.removeEventListener('gp_breach_alert', handler)
-      window.removeEventListener('storage', storageHandler)
+      cleanups.forEach((fn) => fn())
     }
   },
 

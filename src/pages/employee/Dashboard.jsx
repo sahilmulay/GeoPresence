@@ -62,55 +62,66 @@ export default function EmployeeDashboard() {
 
     const radius = Number(activeTask.radius_m) || GEOFENCE_RADIUS_M
 
-    const watchId = navigator.geolocation?.watchPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords
-        const dist = getDistance(latitude, longitude, activeTask.target_lat, activeTask.target_lng)
-        const roundedDist = Math.round(dist)
-        setLiveDistance(roundedDist)
+    const handlePosition = (pos) => {
+      const { latitude, longitude } = pos.coords
+      const dist = getDistance(latitude, longitude, activeTask.target_lat, activeTask.target_lng)
+      const roundedDist = Math.round(dist)
+      setLiveDistance(roundedDist)
 
-        const isOut = dist > (radius + 10) // 10m buffer for GPS jitter
-        setIsOutsideZone(isOut)
+      const isOut = dist > (radius + 5) // 5m buffer for GPS jitter
+      setIsOutsideZone(isOut)
 
-        const now = Date.now()
-        // Log breadcrumb every 15 seconds
-        if (now - lastLoggedTimeRef.current > 15000) {
-          lastLoggedTimeRef.current = now
-          api.logTracking?.({
+      const now = Date.now()
+      // Log breadcrumb every 10 seconds
+      if (now - lastLoggedTimeRef.current > 10000) {
+        lastLoggedTimeRef.current = now
+        api.logTracking?.({
+          taskId: activeTask.id,
+          employeeId: profile.id,
+          latitude,
+          longitude,
+          distance: roundedDist,
+          insideGeofence: !isOut,
+        })
+      }
+
+      // Breach detection: alert immediately on breach
+      if (isOut) {
+        if (now - lastAlertTimeRef.current > 15000) {
+          lastAlertTimeRef.current = now
+          api.triggerBreachAlert?.({
             taskId: activeTask.id,
             employeeId: profile.id,
+            employeeName: profile.name,
+            taskTitle: activeTask.title,
+            distance: roundedDist,
             latitude,
             longitude,
-            distance: roundedDist,
-            insideGeofence: !isOut,
           })
         }
+      }
+    }
 
-        // Breach detection: 2-ping confirmation rule
-        if (isOut) {
-          outCountRef.current += 1
-          if (outCountRef.current >= 2 && now - lastAlertTimeRef.current > 30000) {
-            lastAlertTimeRef.current = now
-            api.triggerBreachAlert?.({
-              taskId: activeTask.id,
-              employeeId: profile.id,
-              employeeName: profile.name,
-              taskTitle: activeTask.title,
-              distance: roundedDist,
-              latitude,
-              longitude,
-            })
-          }
-        } else {
-          outCountRef.current = 0
-        }
-      },
+    const watchId = navigator.geolocation?.watchPosition(
+      handlePosition,
       (err) => console.warn('Live tracking GPS error:', err),
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
     )
 
+    // Periodic check interval (ensures continuous updates even if stationary)
+    const intervalId = setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          handlePosition,
+          (err) => console.warn('Interval GPS error:', err),
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+        )
+      }
+    }, 10000)
+
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId)
+      clearInterval(intervalId)
       if (wakeLock) wakeLock.release().catch(() => {})
       setWakeLockActive(false)
     }
@@ -124,10 +135,20 @@ export default function EmployeeDashboard() {
         const task = tasks.data?.find((tk) => tk.id === id)
         if (task?.target_lat && task?.target_lng) {
           const radius = Number(task.radius_m) || GEOFENCE_RADIUS_M
-          const pos = await getPosition()
-          const dist = getDistance(pos.latitude, pos.longitude, task.target_lat, task.target_lng)
-          if (dist > radius) {
-            throw new Error(`Geofence Error: You are ${Math.round(dist)}m away. You must be within ${radius}m of the task location to start work.`)
+          try {
+            const pos = await getPosition()
+            const dist = getDistance(pos.latitude, pos.longitude, task.target_lat, task.target_lng)
+            if (dist > radius) {
+              const proceed = window.confirm(
+                `Geofence Notice: You are ${Math.round(dist)}m away from the assigned location (Designated Radius is ${radius}m).\n\nDo you want to proceed and start work anyway?\n(Starting work while outside will trigger a geofence breach alert on the Supervisor Dashboard).`
+              )
+              if (!proceed) {
+                setBusyTask(null)
+                return
+              }
+            }
+          } catch (gpsErr) {
+            console.warn('GPS location check skipped:', gpsErr.message)
           }
         }
       }
