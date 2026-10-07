@@ -15,6 +15,19 @@ const AUDIO_MAP = {
   }
 }
 
+const FALLBACK_TEXT = {
+  en: {
+    NEED_CHECKIN: 'Please press the Check In button to mark your attendance.',
+    NEED_WORK: 'You have pending tasks. Press Start Work to begin.',
+    ALL_DONE: 'All tasks for today are completed.'
+  },
+  mr: {
+    NEED_CHECKIN: "उपस्थिती नोंदवण्यासाठी 'चेक इन' बटणावर दाबा.",
+    NEED_WORK: "तुमची कामे प्रलंबित आहेत. काम सुरू करण्यासाठी 'काम सुरू करा' वर दाबा.",
+    ALL_DONE: 'आजसाठी सर्व कामे पूर्ण झाली आहेत.'
+  }
+}
+
 export default function VoiceAssistant({ status }) {
   const { lang, t } = useLanguage()
   const [isPlaying, setIsPlaying] = useState(false)
@@ -27,33 +40,60 @@ export default function VoiceAssistant({ status }) {
         audioRef.current.pause()
         audioRef.current = null
       }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
     }
   }, [])
 
+  const playFallbackTTS = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      const text = FALLBACK_TEXT[lang]?.[status] || FALLBACK_TEXT.en[status] || ''
+      const utter = new SpeechSynthesisUtterance(text)
+      utter.lang = lang === 'mr' ? 'mr-IN' : 'en-IN'
+      utter.rate = 0.95
+      utter.onend = () => setIsPlaying(false)
+      utter.onerror = () => setIsPlaying(false)
+      setIsPlaying(true)
+      window.speechSynthesis.speak(utter)
+    } else {
+      setIsPlaying(false)
+    }
+  }
+
   const playAudio = () => {
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause()
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
       setIsPlaying(false)
       return
     }
 
     const src = AUDIO_MAP[lang]?.[status]
-    if (!src) return
+    if (!src) {
+      playFallbackTTS()
+      return
+    }
 
     const audio = new Audio(src)
     audioRef.current = audio
     
     audio.onended = () => setIsPlaying(false)
     audio.onerror = () => {
-      console.error("Audio file not found:", src)
-      setIsPlaying(false)
-      alert(lang === 'mr' ? 'ऑडिओ फाईल सापडली नाही. (Audio file missing)' : 'Audio file is missing. Please add it to public/audio/')
+      console.warn("Audio file missing, falling back to speech synthesis:", src)
+      playFallbackTTS()
     }
 
     setIsPlaying(true)
     audio.play().catch(e => {
-      console.error("Autoplay blocked or file error", e)
-      setIsPlaying(false)
+      console.warn("Audio play blocked or failed, falling back to speech synthesis", e)
+      playFallbackTTS()
     })
   }
 
