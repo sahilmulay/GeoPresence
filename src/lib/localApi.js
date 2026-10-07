@@ -337,7 +337,25 @@ export const localApi = {
     db.alerts.unshift(alert)
     if (db.alerts.length > 50) db.alerts = db.alerts.slice(0, 50)
     save(db)
+    window.dispatchEvent(new CustomEvent('gp_breach_alert', { detail: alert }))
     return delay(alert)
+  },
+
+  subscribeAlerts(cb) {
+    const handler = (e) => cb(e.detail)
+    window.addEventListener('gp_breach_alert', handler)
+    const storageHandler = (e) => {
+      if (e.key === KEY) {
+        const db = load()
+        const latest = (db.alerts || [])[0]
+        if (latest) cb(latest)
+      }
+    }
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener('gp_breach_alert', handler)
+      window.removeEventListener('storage', storageHandler)
+    }
   },
 
   async listAlerts({ wardNo } = {}) {

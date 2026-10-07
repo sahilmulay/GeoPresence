@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -20,7 +21,21 @@ export default function SupervisorDashboard() {
   const { profile } = useAuth()
   const { data, loading, error } = useWardData()
   const { t } = useLanguage()
-  const alerts = useData(() => api.listAlerts?.({ wardNo: profile.ward_no }), [profile.ward_no], { poll: 4000 })
+  const alerts = useData(() => api.listAlerts?.({ wardNo: profile.ward_no }), [profile.ward_no], { poll: 3000 })
+  const [liveAlerts, setLiveAlerts] = useState([])
+
+  useEffect(() => {
+    if (alerts.data) {
+      setLiveAlerts(alerts.data)
+    }
+  }, [alerts.data])
+
+  useEffect(() => {
+    const unsub = api.subscribeAlerts?.((newAlert) => {
+      setLiveAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)])
+    })
+    return () => unsub?.()
+  }, [])
 
   if (loading) return <PageLoader />
   const { employees = [], attendance = [], tasks = [] } = data ?? {}
@@ -41,9 +56,9 @@ export default function SupervisorDashboard() {
         <p className="text-gray-600">You are responsible for Ward {profile.ward_no}</p>
       </div>
 
-      {alerts.data?.length > 0 && (
+      {liveAlerts.length > 0 && (
         <div className="mb-4 space-y-2">
-          {alerts.data.map((alert) => (
+          {liveAlerts.map((alert) => (
             <div key={alert.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border-2 border-red-500 bg-red-50 p-4 shadow-sm animate-pulse">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">🚨</span>
@@ -69,6 +84,7 @@ export default function SupervisorDashboard() {
                 <button
                   onClick={async () => {
                     await api.dismissAlert?.(alert.id)
+                    setLiveAlerts((prev) => prev.filter((a) => a.id !== alert.id))
                     alerts.reload(true)
                   }}
                   className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"

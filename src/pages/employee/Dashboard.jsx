@@ -89,7 +89,7 @@ export default function EmployeeDashboard() {
         // Breach detection: 2-ping confirmation rule
         if (isOut) {
           outCountRef.current += 1
-          if (outCountRef.current >= 2 && now - lastAlertTimeRef.current > 60000) {
+          if (outCountRef.current >= 2 && now - lastAlertTimeRef.current > 30000) {
             lastAlertTimeRef.current = now
             api.triggerBreachAlert?.({
               taskId: activeTask.id,
@@ -100,11 +100,6 @@ export default function EmployeeDashboard() {
               latitude,
               longitude,
             })
-            if ('speechSynthesis' in window) {
-              const utter = new SpeechSynthesisUtterance('Alert: You have moved outside the assigned work zone.')
-              utter.lang = 'en-IN'
-              window.speechSynthesis.speak(utter)
-            }
           }
         } else {
           outCountRef.current = 0
@@ -186,32 +181,12 @@ export default function EmployeeDashboard() {
       <ErrorNote>{taskError || tasks.error}</ErrorNote>
 
       {activeTask && (
-        <div className={`mb-4 rounded-xl border p-4 shadow-sm transition-colors ${
-          isOutsideZone ? 'border-red-400 bg-red-50 text-red-950' : 'border-green-400 bg-green-50 text-green-950'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`h-3 w-3 rounded-full ${isOutsideZone ? 'animate-ping bg-red-600' : 'animate-pulse bg-green-600'}`} />
-              <p className="font-bold text-sm">
-                {isOutsideZone ? '🚨 Geofence Breach Warning!' : '🟢 Live Duty Geofencing Active'}
-              </p>
-            </div>
-            {liveDistance !== null && (
-              <span className={`rounded-full px-3 py-0.5 text-xs font-bold border ${
-                isOutsideZone ? 'border-red-300 bg-white text-red-700' : 'border-green-300 bg-white text-green-700'
-              }`}>
-                {liveDistance}m from pin (Max {activeTask.radius_m || 50}m)
-              </span>
-            )}
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="font-semibold">Work In Progress: {activeTask.title}</span>
           </div>
-          <p className="mt-1 text-xs">
-            {isOutsideZone
-              ? `You are ${liveDistance}m away from ${activeTask.location_name || 'assigned location'}. You must stay within ${activeTask.radius_m || 50}m. Your supervisor has been alerted!`
-              : `Work in progress at ${activeTask.location_name || 'assigned location'}. Live GPS coordinates are being logged.`}
-          </p>
-          {wakeLockActive && (
-            <p className="mt-1 text-[11px] opacity-75">📱 Screen keep-awake active for continuous GPS accuracy</p>
-          )}
+          {wakeLockActive && <span className="text-[11px] text-blue-700">📱 GPS Active</span>}
         </div>
       )}
 

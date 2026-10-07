@@ -172,21 +172,57 @@ export const supabaseApi = {
   },
 
   async triggerBreachAlert({ taskId, employeeId, employeeName, taskTitle, distance, latitude, longitude }) {
+    const alertData = {
+      id: crypto.randomUUID(),
+      task_id: taskId,
+      employee_id: employeeId,
+      employee_name: employeeName || 'Employee',
+      task_title: taskTitle || 'Assigned Task',
+      distance: Math.round(distance),
+      latitude,
+      longitude,
+      timestamp: new Date().toISOString(),
+      resolved: false,
+    }
+
+    // 1. Broadcast over Supabase Realtime WebSocket (works across all devices instantly!)
+    if (supabase) {
+      try {
+        const channel = supabase.channel('geofence_breach_alerts')
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel.send({
+              type: 'broadcast',
+              event: 'BREACH',
+              payload: alertData,
+            })
+          }
+        })
+      } catch (err) {
+        console.warn('Realtime broadcast error:', err)
+      }
+    }
+
+    // 2. Try saving to task_alerts table
     try {
-      const { data } = await supabase.from('task_alerts').insert({
-        task_id: taskId,
-        employee_id: employeeId,
-        employee_name: employeeName,
-        task_title: taskTitle,
-        distance: Math.round(distance),
-        latitude,
-        longitude,
-        resolved: false,
-      }).select().single()
-      return data
+      await supabase.from('task_alerts').insert(alertData)
     } catch (e) {
       console.warn('triggerBreachAlert to supabase skipped:', e.message)
-      return null
+    }
+
+    return alertData
+  },
+
+  subscribeAlerts(cb) {
+    if (!supabase) return () => {}
+    const channel = supabase.channel('geofence_breach_alerts')
+    channel
+      .on('broadcast', { event: 'BREACH' }, ({ payload }) => {
+        cb(payload)
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
     }
   },
 

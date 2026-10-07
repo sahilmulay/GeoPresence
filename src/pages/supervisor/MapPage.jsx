@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLanguage } from '../../context/LanguageContext'
-import { CircleMarker, Circle, Marker, Polyline, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, Circle, Marker, Polyline, LayerGroup, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useWardData } from '../../lib/wardData'
@@ -195,7 +195,7 @@ export default function SupervisorMap() {
                 const circleColor = isBreached ? '#dc2626' : (isSelected ? '#16a34a' : '#2563eb')
 
                 return (
-                  <span key={t.id}>
+                  <LayerGroup key={t.id}>
                     <Circle
                       center={[t.target_lat, t.target_lng]}
                       radius={radius}
@@ -217,7 +217,7 @@ export default function SupervisorMap() {
                         </div>
                       </Popup>
                     </Marker>
-                  </span>
+                  </LayerGroup>
                 )
               })}
 
