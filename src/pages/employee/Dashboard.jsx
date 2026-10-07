@@ -17,8 +17,8 @@ export default function EmployeeDashboard() {
   const [busyTask, setBusyTask] = useState(null)
   const [taskError, setTaskError] = useState('')
 
-  const att = useData(() => api.listAttendance({ employeeId: profile.id }), [profile.id])
-  const tasks = useData(() => api.listTasks({ employeeId: profile.id }), [profile.id], { poll: 10000 })
+  const att = useData(() => (profile?.id ? api.listAttendance({ employeeId: profile.id }) : Promise.resolve([])), [profile?.id])
+  const tasks = useData(() => (profile?.id ? api.listTasks({ employeeId: profile.id }) : Promise.resolve([])), [profile?.id], { poll: 10000 })
 
   const todays = (att.data ?? []).filter((a) => isToday(a.timestamp))
   const latest = todays[0] // list is sorted newest first
@@ -125,7 +125,7 @@ export default function EmployeeDashboard() {
       if (wakeLock) wakeLock.release().catch(() => {})
       setWakeLockActive(false)
     }
-  }, [activeTask?.id, activeTask?.target_lat, activeTask?.target_lng, activeTask?.radius_m, profile.id, profile.name])
+  }, [activeTask?.id, activeTask?.target_lat, activeTask?.target_lng, activeTask?.radius_m, profile?.id, profile?.name])
 
   const setStatus = async (id, status) => {
     setBusyTask(id)
@@ -162,6 +162,8 @@ export default function EmployeeDashboard() {
   }
 
   const openTasks = (tasks.data ?? []).filter((tk) => tk.status !== 'COMPLETED').length
+
+  if (!profile) return <PageLoader />
 
   return (
     <div>

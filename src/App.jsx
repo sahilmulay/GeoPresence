@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import { PublicOnly, RequireRole, RootRedirect } from './components/guards'
 import Login from './pages/auth/Login'
@@ -16,9 +17,10 @@ import CitizenPortal from './pages/citizen/Portal'
 export default function App() {
   return (
     <BrowserRouter>
-      <LanguageProvider>
-        <AuthProvider>
-        <Routes>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <AuthProvider>
+            <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/citizen" element={<CitizenPortal />} />
 
@@ -44,9 +46,10 @@ export default function App() {
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        </AuthProvider>
-      </LanguageProvider>
+            </Routes>
+          </AuthProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }
