@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { useLanguage } from '../../context/LanguageContext'
 import { CircleMarker, Circle, Marker, Polyline, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -7,8 +7,9 @@ import L from 'leaflet'
 import { useWardData } from '../../lib/wardData'
 import { api } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { fmtCoords, fmtDateTime, fmtTime, isToday, mapsLink } from '../../lib/format'
+import { fmtCoords, fmtDateTime, fmtTime, mapsLink } from '../../lib/format'
 import { Badge, Card, ErrorNote, PageLoader } from '../../components/ui'
+import TaskPhotoViewer from '../../components/TaskPhotoViewer'
 
 // Fix default Leaflet icon paths
 delete L.Icon.Default.prototype._getIconUrl
@@ -27,7 +28,7 @@ function isValidLatLng(lat, lng) {
   return !isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180 && (nLat !== 0 || nLng !== 0)
 }
 
-// Error Boundary around Leaflet map to prevent blank screen crashes
+// Error Boundary around Leaflet map
 class MapErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -62,6 +63,7 @@ class MapErrorBoundary extends Component {
   }
 }
 
+// Auto fit map bounds to current employee's latest task and trail
 function SafeFitBounds({ points }) {
   const map = useMap()
 
@@ -81,7 +83,7 @@ function SafeFitBounds({ points }) {
       } else {
         const bounds = L.latLngBounds(validPoints)
         if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 })
+          map.fitBounds(bounds, { padding: [45, 45], maxZoom: 17 })
         }
       }
     } catch (err) {
@@ -94,43 +96,66 @@ function SafeFitBounds({ points }) {
 
 export default function SupervisorMap() {
   const [searchParams] = useSearchParams()
-  const initialTaskId = searchParams.get('taskId')
+  const paramTaskId = searchParams.get('taskId')
+  const paramEmpId = searchParams.get('employeeId')
 
   const { data, loading, error } = useWardData(10000)
   const { t } = useLanguage()
-  const [mainView, setMainView] = useState(initialTaskId ? 'geofence' : 'checkins')
-  const [mode, setMode] = useState('today')
-  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskId || '')
 
-  const geoTasks = useMemo(() => {
-    return (data?.tasks ?? []).filter((tk) => isValidLatLng(tk.target_lat, tk.target_lng))
-  }, [data?.tasks])
+  const employees = data?.employees ?? []
+  const allTasks = data?.tasks ?? []
+  const allAttendance = data?.attendance ?? []
+
+  // Initialize selected employee
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
 
   useEffect(() => {
-    if (initialTaskId) {
-      setMainView('geofence')
-      setSelectedTaskId(initialTaskId)
+    if (selectedEmployeeId) return
+    if (paramEmpId) {
+      setSelectedEmployeeId(paramEmpId)
+    } else if (paramTaskId) {
+      const taskObj = allTasks.find((tk) => String(tk.id) === String(paramTaskId))
+      if (taskObj?.assigned_to) {
+        setSelectedEmployeeId(taskObj.assigned_to)
+      }
+    } else if (employees.length > 0) {
+      // Pick first employee who has an IN_PROGRESS or latest task, or employees[0]
+      const withActiveTask = employees.find((emp) =>
+        allTasks.some((tk) => tk.assigned_to === emp.id && tk.status === 'IN_PROGRESS')
+      )
+      const withAnyTask = employees.find((emp) =>
+        allTasks.some((tk) => tk.assigned_to === emp.id)
+      )
+      setSelectedEmployeeId(withActiveTask?.id || withAnyTask?.id || employees[0]?.id || '')
     }
-  }, [initialTaskId])
+  }, [paramEmpId, paramTaskId, allTasks, employees, selectedEmployeeId])
 
-  // Live breadcrumbs for selected task
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId)
+
+  // Get ONLY the LATEST task of the selected employee
+  const latestTask = useMemo(() => {
+    if (!selectedEmployeeId) return null
+    const empTasks = allTasks.filter((tk) => tk.assigned_to === selectedEmployeeId)
+    if (!empTasks.length) return null
+
+    // Prioritize task currently in progress
+    const inProgress = empTasks.find((tk) => tk.status === 'IN_PROGRESS')
+    if (inProgress) return inProgress
+
+    // Otherwise, pick the most recent task by created_at
+    return [...empTasks].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+  }, [allTasks, selectedEmployeeId])
+
+  // Query live GPS tracking breadcrumbs for THIS latest task
   const trackingData = useData(
-    () => (selectedTaskId ? api.listTracking?.({ taskId: selectedTaskId }) : Promise.resolve([])),
-    [selectedTaskId],
+    () =>
+      latestTask?.id
+        ? api.listTracking?.({ taskId: latestTask.id, employeeId: selectedEmployeeId })
+        : Promise.resolve([]),
+    [latestTask?.id, selectedEmployeeId],
     { poll: 4000 }
   )
 
-  const markers = useMemo(() => {
-    const checkIns = (data?.attendance ?? []).filter(
-      (a) => a.check_type === 'CHECKIN' && isValidLatLng(a.latitude, a.longitude)
-    )
-    if (mode === 'today') return checkIns.filter((a) => isToday(a.timestamp))
-    const seen = new Set()
-    return checkIns.filter((a) => (seen.has(a.employee_id) ? false : seen.add(a.employee_id)))
-  }, [data, mode])
-
-  const selectedTask = geoTasks.find((tk) => String(tk.id) === String(selectedTaskId))
-  
   const validBreadcrumbs = useMemo(() => {
     return (trackingData.data ?? [])
       .filter((b) => isValidLatLng(b.latitude, b.longitude))
@@ -141,103 +166,159 @@ export default function SupervisorMap() {
       }))
   }, [trackingData.data])
 
-  const latestBreadcrumb = validBreadcrumbs[validBreadcrumbs.length - 1]
+  const routeCoords = useMemo(() => {
+    return validBreadcrumbs.map((b) => [b.lat, b.lng])
+  }, [validBreadcrumbs])
 
+  const startPoint = validBreadcrumbs[0]
+  const currentPosition = validBreadcrumbs[validBreadcrumbs.length - 1]
+
+  const taskHasLocation = latestTask && isValidLatLng(latestTask.target_lat, latestTask.target_lng)
+  const taskLat = taskHasLocation ? Number(latestTask.target_lat) : null
+  const taskLng = taskHasLocation ? Number(latestTask.target_lng) : null
+  const taskRadius = Number(latestTask?.radius_m) || 50
+
+  const isCurrentlyBreached =
+    currentPosition && currentPosition.distance > taskRadius
+
+  // Check-in record for this employee today (if any)
+  const employeeCheckIn = useMemo(() => {
+    if (!selectedEmployeeId) return null
+    return allAttendance.find(
+      (a) => a.employee_id === selectedEmployeeId && a.check_type === 'CHECKIN' && isValidLatLng(a.latitude, a.longitude)
+    )
+  }, [allAttendance, selectedEmployeeId])
+
+  // Points for camera auto-fit
   const points = useMemo(() => {
-    if (mainView === 'checkins') {
-      return markers.map((m) => [Number(m.latitude), Number(m.longitude)])
-    }
     const pts = []
-    if (selectedTask && isValidLatLng(selectedTask.target_lat, selectedTask.target_lng)) {
-      pts.push([Number(selectedTask.target_lat), Number(selectedTask.target_lng)])
+    if (taskHasLocation) pts.push([taskLat, taskLng])
+    if (routeCoords.length > 0) {
+      routeCoords.forEach((pt) => pts.push(pt))
     }
-    if (latestBreadcrumb && isValidLatLng(latestBreadcrumb.lat, latestBreadcrumb.lng)) {
-      pts.push([latestBreadcrumb.lat, latestBreadcrumb.lng])
-    }
-    if (!pts.length && geoTasks.length) {
-      return geoTasks.map((tk) => [Number(tk.target_lat), Number(tk.target_lng)])
+    if (employeeCheckIn && !pts.length) {
+      pts.push([Number(employeeCheckIn.latitude), Number(employeeCheckIn.longitude)])
     }
     return pts
-  }, [mainView, markers, selectedTask, latestBreadcrumb, geoTasks])
+  }, [taskHasLocation, taskLat, taskLng, routeCoords, employeeCheckIn])
 
   if (loading) return <PageLoader />
 
   return (
     <div>
-      <div className="mb-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">
-          {mainView === 'checkins' ? 'Check-in Live Map' : 'Live Task Geofences & Routes'}
-        </h1>
-
-        <div className="flex rounded-xl border border-gray-300 bg-white p-1 text-xs font-semibold shadow-sm">
-          <button
-            onClick={() => setMainView('checkins')}
-            className={`min-h-8 rounded-lg px-3 ${mainView === 'checkins' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-          >
-            📸 Check-ins
-          </button>
-          <button
-            onClick={() => setMainView('geofence')}
-            className={`min-h-8 rounded-lg px-3 ${mainView === 'geofence' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-          >
-            🛰️ Live Geofences & Trails
-          </button>
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">{t('sup_map.title')}</h1>
+          <p className="text-xs text-gray-500">
+            Select an employee below to view their latest task, 50m geofence, and GPS movement trail.
+          </p>
         </div>
       </div>
 
       <ErrorNote>{error}</ErrorNote>
 
-      {/* Sub-controls */}
-      {mainView === 'checkins' ? (
-        <div className="mb-3 flex justify-end">
-          <div className="flex rounded-full border border-gray-300 bg-white p-1 text-xs font-semibold">
-            {[
-              ['today', 'Today'],
-              ['latest', 'Latest'],
-            ].map(([v, l]) => (
-              <button
-                key={v}
-                onClick={() => setMode(v)}
-                className={`min-h-7 rounded-full px-3 ${mode === v ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-              >
-                {l}
-              </button>
-            ))}
+      {/* PRIMARY EMPLOYEE SELECTOR DROPDOWN */}
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-3.5 shadow-sm">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-lg text-blue-700">
+            👤
           </div>
-        </div>
-      ) : (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-blue-900">Track Task:</span>
+          <div className="flex-1 min-w-0">
+            <label htmlFor="employee-dropdown" className="block text-xs font-bold text-gray-700">
+              Select Employee:
+            </label>
             <select
-              value={selectedTaskId}
-              onChange={(e) => setSelectedTaskId(e.target.value)}
-              className="rounded-lg border border-blue-300 bg-white px-2 py-1 font-semibold text-blue-950 focus:outline-none"
+              id="employee-dropdown"
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="mt-0.5 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-1.5 text-sm font-semibold text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-hidden"
             >
-              <option value="">All Pinned Tasks ({geoTasks.length})</option>
-              {geoTasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title} ({t.assignee?.name || 'Assigned'})
-                </option>
-              ))}
+              {employees.length === 0 && <option value="">No employees found</option>}
+              {employees.map((emp) => {
+                const empActive = allTasks.find(
+                  (tk) => tk.assigned_to === emp.id && tk.status === 'IN_PROGRESS'
+                )
+                const empLatest = empActive || allTasks.filter((tk) => tk.assigned_to === emp.id)[0]
+                return (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} {empLatest ? `· Task: ${empLatest.title} (${empLatest.status})` : '· (No task)'}
+                  </option>
+                )
+              })}
             </select>
           </div>
-          {selectedTask && (
-            <span className="text-blue-900 font-medium">
-              Geofence: <b>{selectedTask.radius_m || 50}m</b> · Waypoints: <b>{validBreadcrumbs.length}</b>
+        </div>
+
+        {selectedEmployee && (
+          <div className="flex items-center gap-2 self-start sm:self-auto text-xs text-gray-600 bg-blue-50/80 px-3 py-2 rounded-xl border border-blue-100">
+            <span>Ward {selectedEmployee.ward_no}</span>
+            <span>·</span>
+            <span className="font-semibold text-blue-900">
+              {latestTask ? `Latest Task: ${latestTask.title}` : 'No active task'}
             </span>
-          )}
+          </div>
+        )}
+      </div>
+
+      {/* LATEST TASK HEADER SUMMARY */}
+      {latestTask ? (
+        <Card className="mb-3 p-3.5 border-l-4 border-l-blue-600">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-gray-950">{latestTask.title}</span>
+                <Badge value={latestTask.status} />
+                {latestTask.status === 'IN_PROGRESS' && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 animate-pulse">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                    Live Working
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-600">
+                {latestTask.description || 'Assigned municipal work'} · 📍{' '}
+                <b>{latestTask.location_name || 'Designated Area'}</b> (Geofence: {taskRadius}m radius)
+              </p>
+            </div>
+
+            {currentPosition && (
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                    currentPosition.inside_geofence
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-300 animate-bounce'
+                  }`}
+                >
+                  {currentPosition.inside_geofence
+                    ? `✅ Inside 50m Zone (${currentPosition.distance}m from pin)`
+                    : `🚨 GEOFENCE BREACH (${currentPosition.distance}m away)`}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      ) : (
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-xs text-amber-900">
+          <p className="font-bold">No tasks assigned to {selectedEmployee?.name || 'this worker'} yet.</p>
+          <p className="mt-1 text-amber-700">Assign a new task with a pinned location in the Tasks section to track live movement.</p>
+          <Link
+            to="/supervisor/tasks"
+            className="mt-2 inline-block rounded-lg bg-blue-600 px-3.5 py-1.5 font-bold text-white shadow-xs hover:bg-blue-700"
+          >
+            Go to Assign Task
+          </Link>
         </div>
       )}
 
-      {/* Map View wrapped in Error Boundary */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {/* MAP VIEW CONTAINER */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
         <MapErrorBoundary>
           <MapContainer
-            center={DEFAULT_PUNE}
-            zoom={13}
+            center={taskHasLocation ? [taskLat, taskLng] : DEFAULT_PUNE}
+            zoom={16}
             scrollWheelZoom={true}
-            style={{ height: '58vh', minHeight: '360px', width: '100%' }}
+            style={{ height: '62vh', minHeight: '400px', width: '100%' }}
             className="w-full"
           >
             <TileLayer
@@ -246,176 +327,230 @@ export default function SupervisorMap() {
             />
             <SafeFitBounds points={points} />
 
-            {/* 1. CHECK-INS VIEW */}
-            {mainView === 'checkins' &&
-              markers.map((m) => {
-                const flagged = m.status === 'FLAGGED'
-                const color = flagged ? '#dc2626' : '#16a34a'
-                const lat = Number(m.latitude)
-                const lng = Number(m.longitude)
-
-                return (
-                  <CircleMarker
-                    key={m.id}
-                    center={[lat, lng]}
-                    radius={12}
-                    pathOptions={{ color: '#ffffff', weight: 3, fillColor: color, fillOpacity: 1 }}
-                  >
-                    <Popup>
-                      <div className="space-y-1 text-sm">
-                        <p className="text-base font-bold">{m.employees?.name || 'Worker'}</p>
-                        <p>Ward Number: {m.employees?.ward_no ?? '—'}</p>
-                        <p>{fmtDateTime(m.timestamp)}</p>
-                        <p>
-                          Coordinates:{' '}
-                          <a
-                            href={mapsLink(lat, lng)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 underline"
-                          >
-                            {fmtCoords(lat, lng)}
-                          </a>
-                        </p>
-                        <Badge value={m.status} />
-                        {m.photo_url && (
-                          <img src={m.photo_url} alt="" className="mt-1 h-20 w-20 rounded-lg object-cover" />
-                        )}
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                )
-              })}
-
-            {/* 2. GEOFENCES & LIVE BREADCRUMBS VIEW */}
-            {mainView === 'geofence' && (
+            {/* 1. LATEST TASK TARGET PIN & 50m GEOFENCE BOUNDARY */}
+            {taskHasLocation && (
               <>
-                {/* 50m circles for pinned tasks */}
-                {geoTasks.map((t) => {
-                  const isSelected = String(selectedTaskId) === String(t.id)
-                  const radius = Number(t.radius_m) || 50
-                  const isBreached =
-                    isSelected && latestBreadcrumb && latestBreadcrumb.distance > radius
-                  const circleColor = isBreached ? '#dc2626' : isSelected ? '#16a34a' : '#2563eb'
-                  const lat = Number(t.target_lat)
-                  const lng = Number(t.target_lng)
+                <Circle
+                  center={[taskLat, taskLng]}
+                  radius={taskRadius}
+                  pathOptions={{
+                    color: isCurrentlyBreached ? '#dc2626' : '#2563eb',
+                    fillColor: isCurrentlyBreached ? '#f87171' : '#3b82f6',
+                    fillOpacity: 0.2,
+                    weight: 2.5,
+                    dashArray: '5, 5',
+                  }}
+                />
 
-                  return (
-                    <React.Fragment key={t.id}>
-                      <Circle
-                        center={[lat, lng]}
-                        radius={radius}
-                        pathOptions={{
-                          color: circleColor,
-                          fillColor: circleColor,
-                          fillOpacity: isSelected ? 0.25 : 0.15,
-                          weight: isSelected ? 3 : 1.5,
-                        }}
-                      />
-                      <Marker position={[lat, lng]}>
-                        <Popup>
-                          <div className="space-y-1 text-xs">
-                            <p className="font-bold text-sm">{t.title}</p>
-                            <p>📍 {t.location_name || 'Designated Area'}</p>
-                            <p>
-                              Assigned to: <b>{t.assignee?.name || 'Worker'}</b>
-                            </p>
-                            <p>
-                              Geofence: <b>{radius}m radius</b>
-                            </p>
-                            <Badge value={t.status} />
-                          </div>
-                        </Popup>
-                      </Marker>
-                    </React.Fragment>
-                  )
-                })}
+                <Marker position={[taskLat, taskLng]}>
+                  <Popup>
+                    <div className="space-y-1 text-xs">
+                      <p className="font-bold text-sm text-blue-900">🎯 Task Designated Center</p>
+                      <p className="font-semibold">{latestTask.title}</p>
+                      <p>📍 {latestTask.location_name || 'Designated Area'}</p>
+                      <p>Radius: <b>{taskRadius} meters</b></p>
+                      <Badge value={latestTask.status} />
+                    </div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
 
-                {/* Breadcrumb Route Path */}
-                {validBreadcrumbs.length > 1 && (
-                  <Polyline
-                    positions={validBreadcrumbs.map((b) => [b.lat, b.lng])}
-                    pathOptions={{ color: '#7c3aed', weight: 4, dashArray: '6, 6' }}
-                  />
-                )}
+            {/* 2. EMPLOYEE GPS MOVEMENT ROUTE TRAIL (Polyline like Photo 1) */}
+            {routeCoords.length > 1 && (
+              <>
+                {/* Glow outline behind route line */}
+                <Polyline
+                  positions={routeCoords}
+                  pathOptions={{
+                    color: '#fb923c',
+                    weight: 12,
+                    opacity: 0.35,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
 
-                {/* Worker Live Position Marker */}
-                {latestBreadcrumb && (
+                {/* Primary Route Path (Vibrant Vermilion Orange like fitness/movement map) */}
+                <Polyline
+                  positions={routeCoords}
+                  pathOptions={{
+                    color: '#ea580c',
+                    weight: 6,
+                    opacity: 0.95,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
+
+                {/* Waypoint markers along the route */}
+                {validBreadcrumbs.map((b, idx) => (
                   <CircleMarker
-                    center={[latestBreadcrumb.lat, latestBreadcrumb.lng]}
-                    radius={10}
+                    key={b.id || idx}
+                    center={[b.lat, b.lng]}
+                    radius={4}
                     pathOptions={{
                       color: '#ffffff',
-                      weight: 2,
-                      fillColor: latestBreadcrumb.inside_geofence ? '#16a34a' : '#dc2626',
+                      weight: 1.5,
+                      fillColor: b.inside_geofence ? '#ea580c' : '#dc2626',
                       fillOpacity: 1,
                     }}
                   >
                     <Popup>
-                      <div className="space-y-1 text-xs">
-                        <p className="font-bold text-sm">📍 Worker Live Position</p>
+                      <div className="space-y-0.5 text-xs">
+                        <p className="font-bold">📍 Waypoint #{idx + 1}</p>
+                        <p>Time: <b>{fmtTime(b.timestamp)}</b></p>
+                        <p>Distance from center: <b>{b.distance}m</b></p>
                         <p>
-                          Distance from zone center: <b>{latestBreadcrumb.distance}m</b>
+                          {b.inside_geofence ? (
+                            <span className="text-green-700 font-semibold">✅ Inside Geofence</span>
+                          ) : (
+                            <span className="text-red-700 font-bold">🚨 Outside Zone</span>
+                          )}
                         </p>
-                        <p>
-                          Status:{' '}
-                          <span
-                            className={
-                              latestBreadcrumb.inside_geofence
-                                ? 'text-green-700 font-bold'
-                                : 'text-red-700 font-bold'
-                            }
-                          >
-                            {latestBreadcrumb.inside_geofence ? '✅ Inside 50m Zone' : '🚨 Outside Zone!'}
-                          </span>
-                        </p>
-                        <p className="text-gray-500">{fmtTime(latestBreadcrumb.timestamp)}</p>
                       </div>
                     </Popup>
                   </CircleMarker>
-                )}
+                ))}
               </>
+            )}
+
+            {/* 3. ROUTE START POINT */}
+            {startPoint && (
+              <CircleMarker
+                center={[startPoint.lat, startPoint.lng]}
+                radius={8}
+                pathOptions={{
+                  color: '#ffffff',
+                  weight: 2,
+                  fillColor: '#16a34a',
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <div className="text-xs">
+                    <p className="font-bold text-green-700">🟢 Route Start Point</p>
+                    <p>Time: {fmtTime(startPoint.timestamp)}</p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
+
+            {/* 4. CURRENT / LATEST LIVE WORKER POSITION */}
+            {currentPosition && (
+              <CircleMarker
+                center={[currentPosition.lat, currentPosition.lng]}
+                radius={12}
+                pathOptions={{
+                  color: '#ffffff',
+                  weight: 3.5,
+                  fillColor: currentPosition.inside_geofence ? '#2563eb' : '#dc2626',
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-sm">📍 Worker Current Position</p>
+                    <p>Employee: <b>{selectedEmployee?.name || 'Worker'}</b></p>
+                    <p>Task: <b>{latestTask?.title}</b></p>
+                    <p>
+                      Distance to task center:{' '}
+                      <b className="text-base text-blue-900">{currentPosition.distance}m</b>
+                    </p>
+                    <p>
+                      Geofence status:{' '}
+                      <span
+                        className={
+                          currentPosition.inside_geofence
+                            ? 'text-green-700 font-bold'
+                            : 'text-red-700 font-bold'
+                        }
+                      >
+                        {currentPosition.inside_geofence ? '✅ Inside 50m Boundary' : '🚨 OUTSIDE 50M BOUNDARY'}
+                      </span>
+                    </p>
+                    <p className="text-gray-500">Updated: {fmtTime(currentPosition.timestamp)}</p>
+                    <a
+                      href={mapsLink(currentPosition.lat, currentPosition.lng)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline block pt-0.5"
+                    >
+                      Open in Google Maps ↗
+                    </a>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
+
+            {/* Fallback Check-in Marker if no task geofence */}
+            {!taskHasLocation && employeeCheckIn && (
+              <CircleMarker
+                center={[Number(employeeCheckIn.latitude), Number(employeeCheckIn.longitude)]}
+                radius={12}
+                pathOptions={{
+                  color: '#ffffff',
+                  weight: 3,
+                  fillColor: '#16a34a',
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-sm">Checked In Today</p>
+                    <p>{selectedEmployee?.name}</p>
+                    <p>{fmtDateTime(employeeCheckIn.timestamp)}</p>
+                    {employeeCheckIn.photo_url && (
+                      <img src={employeeCheckIn.photo_url} alt="" className="h-16 w-16 rounded object-cover" />
+                    )}
+                  </div>
+                </Popup>
+              </CircleMarker>
             )}
           </MapContainer>
         </MapErrorBoundary>
       </div>
 
-      {/* Legend / Status card */}
-      <Card className="mt-3 flex items-center justify-between text-xs">
-        {mainView === 'checkins' ? (
-          <>
-            <span>
-              <b>{markers.length}</b> check-in location{markers.length === 1 ? '' : 's'} shown
-            </span>
-            <span className="flex items-center gap-3 text-gray-600">
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-3 w-3 rounded-full bg-green-600" /> Present
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-3 w-3 rounded-full bg-red-600" /> Flagged
-              </span>
-            </span>
-          </>
-        ) : (
-          <>
-            <span>
-              <b>{geoTasks.length}</b> geofenced task{geoTasks.length === 1 ? '' : 's'} ·
-              {selectedTask ? ` Tracking "${selectedTask.title}"` : ' Select a task to see trail'}
-            </span>
-            <span className="flex items-center gap-3 text-gray-600">
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-3 w-3 rounded-full bg-blue-500" /> 50m Zone
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-3 w-3 rounded-full bg-purple-600" /> Route Trail
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-3 w-3 rounded-full bg-red-600" /> Breach
-              </span>
-            </span>
-          </>
-        )}
+      {/* MAP LEGEND & STATS BAR */}
+      <Card className="mt-3 p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 text-gray-700">
+          <span className="font-bold text-gray-900">
+            {selectedEmployee?.name ? `${selectedEmployee.name}'s Trail:` : 'Trail Info:'}
+          </span>
+          <span>
+            {validBreadcrumbs.length > 0 ? (
+              <b>{validBreadcrumbs.length} movement waypoints tracked</b>
+            ) : (
+              'Awaiting GPS route points'
+            )}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 text-gray-600">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-full bg-blue-500" /> 50m Geofence
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-4 rounded-full bg-orange-600" /> GPS Route Trail
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-300" /> Current Worker Pin
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-full bg-green-600" /> Route Start
+          </span>
+        </div>
       </Card>
+
+      {/* WORK PHOTOS POSTED FOR THIS LATEST TASK */}
+      {latestTask && (
+        <div className="mt-4">
+          <TaskPhotoViewer
+            photos={latestTask.photos || []}
+            title={`Work Proof Photos for "${latestTask.title}" (${selectedEmployee?.name || 'Worker'})`}
+          />
+        </div>
+      )}
     </div>
   )
 }

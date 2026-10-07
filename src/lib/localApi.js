@@ -250,6 +250,23 @@ const seedComplaints = () => [
   },
 ]
 
+const seedTracking = () => [
+  { id: 'tr-1', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5192, longitude: 73.8550, distance: 54, inside_geofence: false, timestamp: at(0, 9, 30) },
+  { id: 'tr-2', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5195, longitude: 73.8553, distance: 45, inside_geofence: true, timestamp: at(0, 9, 45) },
+  { id: 'tr-3', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5198, longitude: 73.8556, distance: 30, inside_geofence: true, timestamp: at(0, 10, 0) },
+  { id: 'tr-4', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5200, longitude: 73.8560, distance: 0, inside_geofence: true, timestamp: at(0, 10, 15) },
+  { id: 'tr-5', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5203, longitude: 73.8564, distance: 28, inside_geofence: true, timestamp: at(0, 10, 30) },
+  { id: 'tr-6', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5206, longitude: 73.8568, distance: 48, inside_geofence: true, timestamp: at(0, 10, 45) },
+  { id: 'tr-7', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5204, longitude: 73.8571, distance: 52, inside_geofence: false, timestamp: at(0, 11, 0) },
+  { id: 'tr-8', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5201, longitude: 73.8566, distance: 35, inside_geofence: true, timestamp: at(0, 11, 15) },
+  { id: 'tr-9', task_id: 'seed-task-2', employee_id: 'seed-emp-sahil', latitude: 18.5200, longitude: 73.8561, distance: 8, inside_geofence: true, timestamp: at(0, 11, 30) },
+  { id: 'tr-10', task_id: 'seed-task-3', employee_id: 'seed-emp-amit', latitude: 18.5310, longitude: 73.8440, distance: 42, inside_geofence: true, timestamp: at(0, 10, 0) },
+  { id: 'tr-11', task_id: 'seed-task-3', employee_id: 'seed-emp-amit', latitude: 18.5314, longitude: 73.8446, distance: 0, inside_geofence: true, timestamp: at(0, 10, 20) },
+  { id: 'tr-12', task_id: 'seed-task-3', employee_id: 'seed-emp-amit', latitude: 18.5318, longitude: 73.8452, distance: 36, inside_geofence: true, timestamp: at(0, 10, 40) },
+  { id: 'tr-13', task_id: 'seed-task-3', employee_id: 'seed-emp-amit', latitude: 18.5322, longitude: 73.8458, distance: 55, inside_geofence: false, timestamp: at(0, 11, 0) },
+  { id: 'tr-14', task_id: 'seed-task-3', employee_id: 'seed-emp-amit', latitude: 18.5317, longitude: 73.8450, distance: 22, inside_geofence: true, timestamp: at(0, 11, 20) },
+]
+
 // ---------- storage ----------
 function load() {
   let db = null
@@ -260,10 +277,12 @@ function load() {
   }
   const today = new Date().toDateString()
   if (!db) {
-    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), complaints: seedComplaints(), tracking: [], alerts: [], session: null, seedDay: today }
+    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), complaints: seedComplaints(), tracking: seedTracking(), alerts: [], session: null, seedDay: today }
     save(db)
   } else {
-    db.tracking = db.tracking || []
+    if (!db.tracking || !db.tracking.length) {
+      db.tracking = seedTracking()
+    }
     db.alerts = db.alerts || []
     if (db.tasks) {
       db.tasks = db.tasks.map((t) => {
