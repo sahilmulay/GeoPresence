@@ -109,21 +109,35 @@ export const supabaseApi = {
   },
 
   async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng, radius_m = 50 }) {
+    const payload = {
+      title,
+      description,
+      assigned_by,
+      assigned_to,
+      ward_no,
+      status,
+      location_name: location_name || null,
+      target_lat: target_lat ?? null,
+      target_lng: target_lng ?? null,
+    }
+
+    // Try inserting with radius_m first
     const { error } = await supabase
       .from('tasks')
       .insert({
-        title,
-        description,
-        assigned_by,
-        assigned_to,
-        ward_no,
-        status,
-        location_name: location_name || null,
-        target_lat: target_lat ?? null,
-        target_lng: target_lng ?? null,
+        ...payload,
         radius_m: Number(radius_m) || 50,
       })
-    fail(error)
+
+    if (error) {
+      // If the user's Supabase tasks table does not have radius_m yet, fall back seamlessly
+      if (error.message?.includes('radius_m') || error.code === 'PGRST204') {
+        const { error: retryError } = await supabase.from('tasks').insert(payload)
+        fail(retryError)
+        return
+      }
+      fail(error)
+    }
   },
 
   async updateTaskStatus(id, status) {
