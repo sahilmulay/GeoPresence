@@ -8,12 +8,15 @@ import { getDistance, GEOFENCE_RADIUS_M } from '../../lib/geo'
 import { isToday, fmtTime } from '../../lib/format'
 import AttendanceCapture from '../../components/AttendanceCapture'
 import VoiceAssistant from '../../components/VoiceAssistant'
+import TaskPhotoModal from '../../components/TaskPhotoModal'
+import TaskPhotoViewer from '../../components/TaskPhotoViewer'
 import { Badge, Button, Card, Empty, ErrorNote, LocationLabel, PageLoader, SectionTitle } from '../../components/ui'
 
 export default function EmployeeDashboard() {
   const { t } = useLanguage()
   const { profile } = useAuth()
   const [capture, setCapture] = useState(null) // 'CHECKIN' | 'CHECKOUT' | null
+  const [photoModalTask, setPhotoModalTask] = useState(null)
   const [busyTask, setBusyTask] = useState(null)
   const [taskError, setTaskError] = useState('')
 
@@ -237,14 +240,35 @@ export default function EmployeeDashboard() {
               {task.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
                 <p className="mt-1 text-xs font-semibold text-red-600">{t('emp_dash.checkin_first')}</p>
               )}
+
+              {/* Work Photos Gallery */}
+              <TaskPhotoViewer
+                photos={task.photos || []}
+                title={t('tasks.work_photos')}
+                canAdd={task.status === 'IN_PROGRESS'}
+                onAddClick={() => setPhotoModalTask(task)}
+              />
+
               {task.status !== 'COMPLETED' && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Button variant="outline" disabled={task.status !== 'PENDING' || busyTask === task.id || latest?.check_type !== 'CHECKIN'} onClick={() => setStatus(task.id, 'IN_PROGRESS')}>
-                    {t('emp_dash.start_work')}
-                  </Button>
-                  <Button variant="success" loading={busyTask === task.id} onClick={() => setStatus(task.id, 'COMPLETED')}>
-                    {t('emp_dash.mark_completed')}
-                  </Button>
+                <div className="mt-3 space-y-2">
+                  {task.status === 'IN_PROGRESS' && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoModalTask(task)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 py-2.5 text-xs font-bold text-blue-700 hover:bg-blue-100 active:scale-95 transition-all shadow-xs"
+                    >
+                      <span className="text-base">📸</span>
+                      <span>{t('tasks.post_photo')}</span>
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="outline" disabled={task.status !== 'PENDING' || busyTask === task.id || latest?.check_type !== 'CHECKIN'} onClick={() => setStatus(task.id, 'IN_PROGRESS')}>
+                      {t('emp_dash.start_work')}
+                    </Button>
+                    <Button variant="success" loading={busyTask === task.id} onClick={() => setStatus(task.id, 'COMPLETED')}>
+                      {t('emp_dash.mark_completed')}
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>
@@ -252,6 +276,16 @@ export default function EmployeeDashboard() {
         </div>
       ) : (
         <Empty>{t('emp_dash.no_tasks')}</Empty>
+      )}
+
+      {photoModalTask && (
+        <TaskPhotoModal
+          task={photoModalTask}
+          employeeId={profile.id}
+          employeeName={profile.name}
+          onClose={() => setPhotoModalTask(null)}
+          onSuccess={() => tasks.reload(true)}
+        />
       )}
 
       {capture && (

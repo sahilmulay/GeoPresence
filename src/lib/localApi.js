@@ -90,7 +90,7 @@ const seedAttendance = () => {
   return rows
 }
 
-const task = (id, title, description, slug, status, daysAgo = 0, location_name = null, target_lat = null, target_lng = null) => ({
+const task = (id, title, description, slug, status, daysAgo = 0, location_name = null, target_lat = null, target_lng = null, photos = []) => ({
   id: `seed-task-${id}`,
   title,
   description,
@@ -101,14 +101,33 @@ const task = (id, title, description, slug, status, daysAgo = 0, location_name =
   location_name,
   target_lat,
   target_lng,
+  photos,
   created_at: at(-daysAgo, 8, 0),
 })
 
 const seedTasks = () => [
   task(1, 'Road Cleaning', 'Area: Market Area. Sweep the main road and clear debris before 11 AM.', 'sahil', 'PENDING', 0, 'Ram Mandir Chowk', 18.5196, 73.8553),
-  task(2, 'Drain Cleaning', 'Area: Lane 3. Clear blocked drain near the bus stop.', 'sahil', 'IN_PROGRESS', 0, 'Lane 3', 18.5200, 73.8560),
+  task(2, 'Drain Cleaning', 'Area: Lane 3. Clear blocked drain near the bus stop.', 'sahil', 'IN_PROGRESS', 0, 'Lane 3', 18.5200, 73.8560, [
+    {
+      id: 'seed-wp-1',
+      url: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=600&q=80',
+      caption: 'Blocked drain silt removed and water flowing freely',
+      timestamp: at(0, 11, 20),
+      employee_id: 'seed-emp-sahil',
+      employee_name: 'Sahil Mulay'
+    }
+  ]),
   task(3, 'Garbage Collection', 'Area: Gandhi Nagar. Collect garbage from all community bins.', 'amit', 'IN_PROGRESS', 0, 'Gandhi Nagar', 18.5314, 73.8446),
-  task(4, 'Footpath Cleaning', 'Area: Shivajinagar. Clean footpath outside the market gate.', 'amit', 'COMPLETED', 1, 'Shivajinagar Market', 18.5315, 73.8450),
+  task(4, 'Footpath Cleaning', 'Area: Shivajinagar. Clean footpath outside the market gate.', 'amit', 'COMPLETED', 1, 'Shivajinagar Market', 18.5315, 73.8450, [
+    {
+      id: 'seed-wp-2',
+      url: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+      caption: 'Footpath sweeping and debris collection complete',
+      timestamp: at(-1, 14, 10),
+      employee_id: 'seed-emp-amit',
+      employee_name: 'Amit Shinde'
+    }
+  ]),
   task(5, 'Street Light Repair', 'Area: Shivaji Chowk. Check and fix 5 street lights.', 'rohit', 'PENDING', 0, 'Shivaji Chowk', 18.5018, 73.8636),
   task(6, 'Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.', 'priya', 'COMPLETED', 1, 'Bus Stand', 18.5074, 73.8077),
 ]
@@ -246,6 +265,15 @@ function load() {
   } else {
     db.tracking = db.tracking || []
     db.alerts = db.alerts || []
+    if (db.tasks) {
+      db.tasks = db.tasks.map((t) => {
+        if (!t.photos) {
+          const seeded = seedTasks().find((s) => s.id === t.id)
+          return { ...t, photos: seeded?.photos || [] }
+        }
+        return t
+      })
+    }
     if (!db.complaints || !db.complaints.length) {
       db.complaints = seedComplaints()
       save(db)
@@ -381,6 +409,7 @@ export const localApi = {
       .filter((t) => (employeeId ? t.assigned_to === employeeId : t.ward_no === me?.ward_no))
       .map((t) => ({
         ...t,
+        photos: t.photos || [],
         location_name: t.location_name || (t.target_lat ? null : 'Ram Mandir Chowk, Ward 5'),
         assignee: { name: db.users.find((u) => u.id === t.assigned_to)?.name ?? 'Unknown' }
       }))
@@ -401,6 +430,7 @@ export const localApi = {
       target_lat: target_lat ?? null,
       target_lng: target_lng ?? null,
       radius_m: Number(radius_m) || 50,
+      photos: [],
       created_at: new Date().toISOString(),
     })
     save(db)
@@ -413,6 +443,25 @@ export const localApi = {
     if (t) t.status = status
     save(db)
     return delay()
+  },
+
+  async addTaskPhoto({ taskId, blob, caption, employeeId, employeeName }) {
+    const url = await blobToDataUrl(blob)
+    const db = load()
+    const t = db.tasks.find((x) => x.id === taskId)
+    if (!t) throw new Error('Task not found')
+    t.photos = t.photos || []
+    const entry = {
+      id: uid(),
+      url,
+      caption: caption?.trim() || '',
+      timestamp: new Date().toISOString(),
+      employee_id: employeeId,
+      employee_name: employeeName || 'Employee',
+    }
+    t.photos.push(entry)
+    save(db)
+    return delay(entry)
   },
 
   async logTracking({ taskId, employeeId, latitude, longitude, distance, insideGeofence }) {

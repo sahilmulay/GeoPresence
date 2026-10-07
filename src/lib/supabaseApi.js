@@ -113,10 +113,19 @@ export const supabaseApi = {
     if (employeeId) q = q.eq('assigned_to', employeeId)
     const { data, error } = await q
     fail(error)
-    return (data ?? []).map((t) => ({
-      ...t,
-      location_name: t.location_name || (t.target_lat ? null : 'Ram Mandir Chowk, Ward 5'),
-    }))
+    return (data ?? []).map((t) => {
+      let localPhotos = []
+      try {
+        localPhotos = JSON.parse(localStorage.getItem(`gp_task_photos_${t.id}`) || '[]')
+      } catch {}
+      const remotePhotos = Array.isArray(t.photos) ? t.photos : []
+      const mergedPhotos = [...remotePhotos, ...localPhotos.filter((lp) => !remotePhotos.some((rp) => rp.id === lp.id))]
+      return {
+        ...t,
+        photos: mergedPhotos,
+        location_name: t.location_name || (t.target_lat ? null : 'Ram Mandir Chowk, Ward 5'),
+      }
+    })
   },
 
   async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng, radius_m = 50 }) {
@@ -154,6 +163,51 @@ export const supabaseApi = {
   async updateTaskStatus(id, status) {
     const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
     fail(error)
+  },
+
+  async addTaskPhoto({ taskId, blob, caption, employeeId, employeeName }) {
+    let photo_url = ''
+    try {
+      const path = `work-photos/${taskId}/${Date.now()}.jpg`
+      const up = await supabase.storage.from('selfies').upload(path, blob, { contentType: 'image/jpeg' })
+      if (!up.error) {
+        photo_url = supabase.storage.from('selfies').getPublicUrl(path).data.publicUrl
+      }
+    } catch {}
+
+    if (!photo_url) {
+      photo_url = await new Promise((res) => {
+        const reader = new FileReader()
+        reader.onload = () => res(reader.result)
+        reader.readAsDataURL(blob)
+      })
+    }
+
+    const photoEntry = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      url: photo_url,
+      caption: caption?.trim() || '',
+      timestamp: new Date().toISOString(),
+      employee_id: employeeId,
+      employee_name: employeeName || 'Employee',
+    }
+
+    // Cache locally as safety net
+    try {
+      const localKey = `gp_task_photos_${taskId}`
+      const existing = JSON.parse(localStorage.getItem(localKey) || '[]')
+      localStorage.setItem(localKey, JSON.stringify([...existing, photoEntry]))
+    } catch {}
+
+    try {
+      const { data } = await supabase.from('tasks').select('photos').eq('id', taskId).single()
+      const existingPhotos = Array.isArray(data?.photos) ? data.photos : []
+      await supabase.from('tasks').update({ photos: [...existingPhotos, photoEntry] }).eq('id', taskId)
+    } catch (err) {
+      console.warn('Could not update photos on supabase tasks table:', err)
+    }
+
+    return photoEntry
   },
 
   async logTracking({ taskId, employeeId, latitude, longitude, distance, insideGeofence }) {

@@ -8,6 +8,7 @@ import { api } from '../../lib/api'
 import { useWardData } from '../../lib/wardData'
 import { getPosition } from '../../lib/device'
 import { fmtDate } from '../../lib/format'
+import TaskPhotoViewer from '../../components/TaskPhotoViewer'
 import { Badge, Button, Card, Empty, ErrorNote, Field, LocationLabel, PageLoader, SectionTitle, inputCls } from '../../components/ui'
 
 // Fix default Leaflet icon
@@ -242,6 +243,19 @@ export default function SupervisorTasks() {
               <p className="mt-2 text-xs text-gray-500">
                 {t('tasks.assigned_to')} <span className="font-semibold text-gray-700">{tk.assignee?.name}</span> · {fmtDate(tk.created_at)}
               </p>
+
+              {/* Work Photos submitted by worker */}
+              <TaskPhotoViewer
+                photos={tk.photos || []}
+                title={`${t('tasks.work_photos')} · ${tk.assignee?.name || 'Worker'}`}
+              />
+
+              {(!tk.photos || tk.photos.length === 0) && tk.status === 'IN_PROGRESS' && (
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-xs text-amber-800">
+                  <span>⏳</span>
+                  <span>Awaiting work progress photos from worker</span>
+                </div>
+              )}
             </Card>
           ))}
         </div>

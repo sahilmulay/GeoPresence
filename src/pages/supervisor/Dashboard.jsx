@@ -105,6 +105,11 @@ export default function SupervisorDashboard() {
   const present = rows.filter((r) => r.s.state !== 'ABSENT').length
   const completed = tasks.filter((t) => t.status === 'COMPLETED').length
 
+  const recentWorkPhotos = tasks
+    .flatMap((tk) => (tk.photos || []).map((p) => ({ ...p, taskTitle: tk.title, taskId: tk.id })))
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 6)
+
   return (
     <div>
       <div className="mb-4">
@@ -207,6 +212,30 @@ export default function SupervisorDashboard() {
         </div>
       ) : (
         <Empty>{t('sup_dash.no_emp')} {profile.ward_no} yet.</Empty>
+      )}
+
+      {/* RECENT WORK PHOTOS FROM FIELD */}
+      {recentWorkPhotos.length > 0 && (
+        <div className="mt-6">
+          <SectionTitle right={<Link to="/supervisor/tasks" className="text-sm font-semibold text-blue-600">View In Tasks</Link>}>
+            Field Work Proof Photos ({recentWorkPhotos.length})
+          </SectionTitle>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {recentWorkPhotos.map((photo) => (
+              <Card key={photo.id} className="p-2 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+                <div className="relative aspect-4/3 w-full rounded-lg overflow-hidden bg-gray-900 mb-2">
+                  <img src={photo.url} alt={photo.caption || 'Work proof'} className="h-full w-full object-cover" />
+                  <span className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-white font-medium">
+                    {fmtTime(photo.timestamp)}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-gray-900 truncate">{photo.taskTitle}</p>
+                <p className="text-[11px] text-gray-500 truncate">By {photo.employee_name || 'Worker'}</p>
+                {photo.caption && <p className="text-[11px] text-gray-700 italic truncate mt-0.5">"{photo.caption}"</p>}
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="mt-6 grid grid-cols-2 gap-3">
