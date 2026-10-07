@@ -91,6 +91,13 @@ export default function Layout() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/citizen"
+              className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center gap-1 shadow-xs"
+            >
+              <span>🏛️</span>
+              <span className="hidden sm:inline">Citizen Portal</span>
+            </Link>
             <button
               onClick={toggleLang}
               className="rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold hover:bg-gray-50"

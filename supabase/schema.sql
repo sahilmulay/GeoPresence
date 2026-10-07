@@ -76,12 +76,38 @@ create table if not exists public.task_alerts (
   created_at   timestamptz not null default now()
 );
 
+create table if not exists public.complaints (
+  id           uuid primary key default gen_random_uuid(),
+  ticket_no    text not null unique,
+  ward_no      integer not null,
+  category     text not null,
+  title        text not null,
+  description  text,
+  location_name text,
+  latitude     double precision,
+  longitude    double precision,
+  citizen_name text,
+  citizen_phone text,
+  status       text not null default 'SUBMITTED' check (status in ('SUBMITTED', 'IN_PROGRESS', 'RESOLVED')),
+  progress_step integer not null default 1,
+  upvotes      integer not null default 0,
+  before_photo text,
+  after_photo  text,
+  assigned_to  uuid references public.employees(id) on delete set null,
+  assigned_worker_name text,
+  resolution_notes text,
+  created_at   timestamptz not null default now(),
+  resolved_at  timestamptz
+);
+
 create index if not exists attendance_employee_ts_idx on public.attendance (employee_id, "timestamp" desc);
 create index if not exists tasks_assigned_to_idx on public.tasks (assigned_to);
 create index if not exists tasks_ward_idx on public.tasks (ward_no);
 create index if not exists employees_ward_idx on public.employees (ward_no);
 create index if not exists task_tracking_task_idx on public.task_tracking (task_id, created_at asc);
 create index if not exists task_alerts_resolved_idx on public.task_alerts (resolved, created_at desc);
+create index if not exists complaints_ward_idx on public.complaints (ward_no, created_at desc);
+create index if not exists complaints_status_idx on public.complaints (status);
 
 -- ---------------------------------------------------------------------
 -- Auto-create the supervisor / employee row when someone registers.
@@ -207,6 +233,12 @@ alter table public.task_alerts enable row level security;
 drop policy if exists "task_alerts: authenticated read and write" on public.task_alerts;
 create policy "task_alerts: authenticated read and write" on public.task_alerts
   for all to authenticated using (true) with check (true);
+
+-- complaints policies (accessible publicly for citizen transparency)
+alter table public.complaints enable row level security;
+drop policy if exists "complaints: public read and insert" on public.complaints;
+create policy "complaints: public read and insert" on public.complaints
+  for all using (true) with check (true);
 
 -- ---------------------------------------------------------------------
 -- Storage: public "selfies" bucket, users may only upload into their own folder

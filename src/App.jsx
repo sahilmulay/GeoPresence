@@ -11,6 +11,7 @@ import SupervisorAttendance from './pages/supervisor/Attendance'
 import SupervisorMap from './pages/supervisor/MapPage'
 import EmployeeDashboard from './pages/employee/Dashboard'
 import EmployeeHistory from './pages/employee/History'
+import CitizenPortal from './pages/citizen/Portal'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <AuthProvider>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
+          <Route path="/citizen" element={<CitizenPortal />} />
 
           <Route element={<PublicOnly />}>
             <Route path="/auth/login" element={<Login />} />

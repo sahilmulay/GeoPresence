@@ -1,5 +1,6 @@
 // Supabase backend implementation of the GeoPresence data API.
 import { createClient } from '@supabase/supabase-js'
+import { localApi } from './localApi'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -311,5 +312,91 @@ export const supabaseApi = {
         console.warn('dismissAlert skipped:', e.message)
       }
     }
+  },
+
+  // ---------- citizen portal & complaints ----------
+  async listComplaints({ wardNo, status, category, search } = {}) {
+    if (!supabase) return localApi.listComplaints({ wardNo, status, category, search })
+    try {
+      let q = supabase.from('complaints').select('*').order('created_at', { ascending: false })
+      if (wardNo && wardNo !== 'ALL') q = q.eq('ward_no', Number(wardNo))
+      if (status && status !== 'ALL') q = q.eq('status', status)
+      if (category && category !== 'ALL') q = q.eq('category', category)
+      const { data, error } = await q
+      if (error) throw error
+      let list = data ?? []
+      if (search) {
+        const s = search.toLowerCase()
+        list = list.filter(
+          (c) =>
+            c.title?.toLowerCase().includes(s) ||
+            c.ticket_no?.toLowerCase().includes(s) ||
+            c.description?.toLowerCase().includes(s) ||
+            c.location_name?.toLowerCase().includes(s)
+        )
+      }
+      return list
+    } catch {
+      return localApi.listComplaints({ wardNo, status, category, search })
+    }
+  },
+
+  async createComplaint(payload) {
+    if (!supabase) return localApi.createComplaint(payload)
+    try {
+      const ticketNo = `PMC-W${payload.ward_no}-${Math.floor(1000 + Math.random() * 9000)}`
+      const row = {
+        ticket_no: ticketNo,
+        ward_no: Number(payload.ward_no),
+        category: payload.category || 'General Municipal Issue',
+        title: payload.title.trim(),
+        description: payload.description?.trim() || '',
+        location_name: payload.location_name?.trim() || `Ward ${payload.ward_no}`,
+        latitude: payload.latitude != null ? Number(payload.latitude) : null,
+        longitude: payload.longitude != null ? Number(payload.longitude) : null,
+        citizen_name: payload.citizen_name?.trim() || 'Ward Resident',
+        citizen_phone: payload.citizen_phone?.trim() || '',
+        status: 'SUBMITTED',
+        progress_step: 1,
+        upvotes: 1,
+        before_photo: payload.before_photo || null,
+      }
+      const { data, error } = await supabase.from('complaints').insert(row).select().single()
+      if (error) throw error
+      return data
+    } catch {
+      return localApi.createComplaint(payload)
+    }
+  },
+
+  async upvoteComplaint(id) {
+    if (!supabase) return localApi.upvoteComplaint(id)
+    try {
+      const { data, error } = await supabase.rpc('increment_complaint_upvote', { complaint_id: id })
+      if (error) throw error
+      return data
+    } catch {
+      return localApi.upvoteComplaint(id)
+    }
+  },
+
+  async updateComplaintStatus(id, updates) {
+    if (!supabase) return localApi.updateComplaintStatus(id, updates)
+    try {
+      const patch = { ...updates }
+      if (updates.status === 'RESOLVED') {
+        patch.resolved_at = new Date().toISOString()
+        patch.progress_step = 3
+      }
+      const { data, error } = await supabase.from('complaints').update(patch).eq('id', id).select().single()
+      if (error) throw error
+      return data
+    } catch {
+      return localApi.updateComplaintStatus(id, updates)
+    }
+  },
+
+  async getWardStaffAvailability(wardNo = 5) {
+    return localApi.getWardStaffAvailability(wardNo)
   },
 }

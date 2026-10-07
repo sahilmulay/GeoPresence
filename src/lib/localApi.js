@@ -113,6 +113,124 @@ const seedTasks = () => [
   task(6, 'Public Toilet Cleaning', 'Area: Bus Stand. Clean and restock community toilets.', 'priya', 'COMPLETED', 1, 'Bus Stand', 18.5074, 73.8077),
 ]
 
+const seedComplaints = () => [
+  {
+    id: 'seed-cmp-1',
+    ticket_no: 'PMC-W5-1042',
+    ward_no: 5,
+    category: 'Garbage & Sanitation',
+    title: 'Overflowing Community Garbage Bin',
+    description: 'Large waste heap overflowing onto main road near Mandir entrance. Waste spreading onto pedestrian walkway.',
+    location_name: 'Ram Mandir Chowk, Laxmi Road',
+    latitude: 18.5196,
+    longitude: 73.8553,
+    citizen_name: 'Rahul Joshi',
+    citizen_phone: '9822******',
+    status: 'RESOLVED',
+    progress_step: 3,
+    upvotes: 24,
+    before_photo: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    after_photo: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=600&q=80',
+    assigned_to: 'seed-emp-sahil',
+    assigned_worker_name: 'Sahil Mulay',
+    resolution_notes: 'Solid waste vehicle deployed. Area thoroughly cleared, swept, and disinfected with bleaching powder.',
+    created_at: at(-2, 10, 15),
+    resolved_at: at(-1, 14, 30),
+  },
+  {
+    id: 'seed-cmp-2',
+    ticket_no: 'PMC-W5-1088',
+    ward_no: 5,
+    category: 'Road & Potholes',
+    title: 'Severe Pothole Causing Traffic Risk',
+    description: 'Deep road depression and broken tarmac outside school gate after recent rains. Two-wheelers slipping.',
+    location_name: 'Lane 3, Narayan Peth',
+    latitude: 18.5200,
+    longitude: 73.8560,
+    citizen_name: 'Sneha Kulkarni',
+    citizen_phone: '9823******',
+    status: 'IN_PROGRESS',
+    progress_step: 2,
+    upvotes: 19,
+    before_photo: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=600&q=80',
+    after_photo: null,
+    assigned_to: 'seed-emp-sahil',
+    assigned_worker_name: 'Sahil Mulay',
+    resolution_notes: 'Road maintenance crew dispatched with hot-mix asphalt patching equipment.',
+    created_at: at(0, 9, 30),
+    resolved_at: null,
+  },
+  {
+    id: 'seed-cmp-3',
+    ticket_no: 'PMC-W5-1095',
+    ward_no: 5,
+    category: 'Drainage & Sewage',
+    title: 'Blocked Stormwater Drain Spilling Foul Water',
+    description: 'Choked gutter overflowing on walkway. Foul water accumulating with heavy mosquito breeding risk.',
+    location_name: 'Shaniwar Peth Corner',
+    latitude: 18.5188,
+    longitude: 73.8520,
+    citizen_name: 'Mahesh Deshmukh',
+    citizen_phone: '9422******',
+    status: 'RESOLVED',
+    progress_step: 3,
+    upvotes: 31,
+    before_photo: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?auto=format&fit=crop&w=600&q=80',
+    after_photo: 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=600&q=80',
+    assigned_to: 'seed-emp-sahil',
+    assigned_worker_name: 'Sahil Mulay',
+    resolution_notes: 'Drainage desilted with suction machine. Chamber cover reseated and surrounding lane washed clean.',
+    created_at: at(-3, 11, 0),
+    resolved_at: at(-1, 16, 45),
+  },
+  {
+    id: 'seed-cmp-4',
+    ticket_no: 'PMC-W5-1102',
+    ward_no: 5,
+    category: 'Street Lighting',
+    title: 'Non-functional Streetlights on Main Junction',
+    description: 'Three consecutive streetlights dark since two nights. Intersection is hazardous for pedestrians after 7 PM.',
+    location_name: 'Appa Balwant Chowk',
+    latitude: 18.5165,
+    longitude: 73.8540,
+    citizen_name: 'Pooja Shinde',
+    citizen_phone: '9765******',
+    status: 'SUBMITTED',
+    progress_step: 1,
+    upvotes: 11,
+    before_photo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+    after_photo: null,
+    assigned_to: null,
+    assigned_worker_name: null,
+    resolution_notes: null,
+    created_at: at(0, 11, 45),
+    resolved_at: null,
+  },
+  {
+    id: 'seed-cmp-5',
+    ticket_no: 'PMC-W1-2015',
+    ward_no: 1,
+    category: 'Public Sanitation',
+    title: 'Construction Debris Dumped on Walkway',
+    description: 'Concrete debris and sand bags obstructing pedestrian traffic outside Shivajinagar Market.',
+    location_name: 'Shivajinagar Market Gate',
+    latitude: 18.5315,
+    longitude: 73.8450,
+    citizen_name: 'Vikram Kadam',
+    citizen_phone: '9850******',
+    status: 'RESOLVED',
+    progress_step: 3,
+    upvotes: 14,
+    before_photo: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=600&q=80',
+    after_photo: 'https://images.unsplash.com/photo-1578965859416-83348d285b03?auto=format&fit=crop&w=600&q=80',
+    assigned_to: 'seed-emp-amit',
+    assigned_worker_name: 'Amit Shinde',
+    resolution_notes: 'Debris carted away in municipal dumper truck. Walkway restored for public use.',
+    created_at: at(-2, 14, 20),
+    resolved_at: at(-1, 12, 10),
+  },
+]
+
 // ---------- storage ----------
 function load() {
   let db = null
@@ -123,11 +241,15 @@ function load() {
   }
   const today = new Date().toDateString()
   if (!db) {
-    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), tracking: [], alerts: [], session: null, seedDay: today }
+    db = { users: seedUsers(), attendance: seedAttendance(), tasks: seedTasks(), complaints: seedComplaints(), tracking: [], alerts: [], session: null, seedDay: today }
     save(db)
   } else {
     db.tracking = db.tracking || []
     db.alerts = db.alerts || []
+    if (!db.complaints || !db.complaints.length) {
+      db.complaints = seedComplaints()
+      save(db)
+    }
     if (db.seedDay !== today) {
       // Keep demo data fresh: re-date the seeded attendance so "Present Today" is never empty.
       db.attendance = [...seedAttendance(), ...db.attendance.filter((a) => !a.id.startsWith('seed-'))]
@@ -401,6 +523,139 @@ export const localApi = {
     if (a) a.resolved = true
     save(db)
     return delay()
+  },
+
+  // ---------- citizen portal & complaints ----------
+  async listComplaints({ wardNo, status, category, search } = {}) {
+    const db = load()
+    let list = db.complaints || []
+    if (wardNo && wardNo !== 'ALL') {
+      list = list.filter((c) => Number(c.ward_no) === Number(wardNo))
+    }
+    if (status && status !== 'ALL') {
+      list = list.filter((c) => c.status === status)
+    }
+    if (category && category !== 'ALL') {
+      list = list.filter((c) => c.category === category)
+    }
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter(
+        (c) =>
+          c.title?.toLowerCase().includes(q) ||
+          c.ticket_no?.toLowerCase().includes(q) ||
+          c.description?.toLowerCase().includes(q) ||
+          c.location_name?.toLowerCase().includes(q)
+      )
+    }
+    return delay(sortDesc(list, 'created_at'))
+  },
+
+  async createComplaint({
+    ward_no,
+    category,
+    title,
+    description,
+    location_name,
+    latitude,
+    longitude,
+    citizen_name,
+    citizen_phone,
+    before_photo,
+  }) {
+    const db = load()
+    db.complaints = db.complaints || []
+    const ticketNo = `PMC-W${ward_no}-${Math.floor(1000 + Math.random() * 9000)}`
+    const complaint = {
+      id: uid(),
+      ticket_no: ticketNo,
+      ward_no: Number(ward_no),
+      category: category || 'General Municipal Issue',
+      title: title.trim(),
+      description: description?.trim() || '',
+      location_name: location_name?.trim() || `Ward ${ward_no}`,
+      latitude: latitude != null ? Number(latitude) : null,
+      longitude: longitude != null ? Number(longitude) : null,
+      citizen_name: citizen_name?.trim() || 'Ward Resident',
+      citizen_phone: citizen_phone?.trim() || '',
+      status: 'SUBMITTED',
+      progress_step: 1, // 1: Logged, 2: In Progress, 3: Resolved
+      upvotes: 1,
+      before_photo: before_photo || null,
+      after_photo: null,
+      assigned_to: null,
+      assigned_worker_name: null,
+      resolution_notes: null,
+      created_at: new Date().toISOString(),
+      resolved_at: null,
+    }
+    db.complaints.unshift(complaint)
+    save(db)
+    return delay(complaint)
+  },
+
+  async upvoteComplaint(id) {
+    const db = load()
+    const c = (db.complaints || []).find((x) => x.id === id)
+    if (c) {
+      c.upvotes = (c.upvotes || 0) + 1
+      save(db)
+    }
+    return delay(c)
+  },
+
+  async updateComplaintStatus(id, { status, progress_step, after_photo, resolution_notes, assigned_worker_name }) {
+    const db = load()
+    const c = (db.complaints || []).find((x) => x.id === id)
+    if (c) {
+      if (status) c.status = status
+      if (progress_step) c.progress_step = progress_step
+      if (after_photo) c.after_photo = after_photo
+      if (resolution_notes) c.resolution_notes = resolution_notes
+      if (assigned_worker_name) c.assigned_worker_name = assigned_worker_name
+      if (status === 'RESOLVED' && !c.resolved_at) {
+        c.resolved_at = new Date().toISOString()
+        c.progress_step = 3
+      }
+      save(db)
+    }
+    return delay(c)
+  },
+
+  async getWardStaffAvailability(wardNo = 5) {
+    const db = load()
+    const wardNum = Number(wardNo)
+    const employees = db.users.filter((u) => u.role === 'employee' && (wardNo === 'ALL' || u.ward_no === wardNum))
+    const today = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    const todayStr = `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`
+
+    const staffStatus = employees.map((emp) => {
+      const checkIns = (db.attendance || [])
+        .filter((a) => a.employee_id === emp.id && a.timestamp?.startsWith(todayStr))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      const latest = checkIns[0]
+      const isOnDuty = latest && latest.check_type === 'CHECKIN'
+      return {
+        id: emp.id,
+        name: emp.name,
+        ward_no: emp.ward_no,
+        onDuty: Boolean(isOnDuty),
+        checkInTime: latest?.timestamp || null,
+        photo_url: latest?.photo_url || null,
+        location: latest ? { lat: latest.latitude, lng: latest.longitude } : null,
+      }
+    })
+
+    const supervisor = db.users.find((u) => u.role === 'supervisor' && (wardNo === 'ALL' || u.ward_no === wardNum))
+
+    return delay({
+      ward_no: wardNum,
+      supervisor: supervisor ? { name: supervisor.name, email: supervisor.email, ward_no: supervisor.ward_no } : null,
+      staff: staffStatus,
+      totalStaff: staffStatus.length,
+      activeStaff: staffStatus.filter((s) => s.onDuty).length,
+    })
   },
 
   // demo-only helper

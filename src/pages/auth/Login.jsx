@@ -96,6 +96,19 @@ export default function Login() {
           </div>
         </div>
       )}
+
+      {/* Citizen Public Portal Access */}
+      <div className="mt-5 rounded-2xl border-2 border-blue-200 bg-blue-50/80 p-3.5 text-center">
+        <p className="text-xs font-extrabold uppercase tracking-wider text-blue-900">🏛️ Civic Transparency & Complaints</p>
+        <p className="text-xs text-slate-600 mt-0.5">Check on-duty staff, view public works, and track complaint progress.</p>
+        <Link
+          to="/citizen"
+          className="mt-2.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-transform"
+        >
+          <span>Open Citizen Public Portal</span>
+          <span>→</span>
+        </Link>
+      </div>
     </AuthShell>
   )
 }
