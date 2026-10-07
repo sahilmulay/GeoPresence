@@ -90,7 +90,7 @@ const seedAttendance = () => {
   return rows
 }
 
-const task = (id, title, description, slug, status, daysAgo = 0) => ({
+const task = (id, title, description, slug, status, daysAgo = 0, location_name = null, target_lat = null, target_lng = null) => ({
   id: `seed-task-${id}`,
   title,
   description,
@@ -98,6 +98,9 @@ const task = (id, title, description, slug, status, daysAgo = 0) => ({
   assigned_to: `seed-emp-${slug}`,
   ward_no: 5,
   status,
+  location_name,
+  target_lat,
+  target_lng,
   created_at: at(-daysAgo, 8, 0),
 })
 
@@ -249,7 +252,11 @@ export const localApi = {
     const me = db.users.find((u) => u.id === db.session)
     const rows = db.tasks
       .filter((t) => (employeeId ? t.assigned_to === employeeId : t.ward_no === me?.ward_no))
-      .map((t) => ({ ...t, assignee: { name: db.users.find((u) => u.id === t.assigned_to)?.name ?? 'Unknown' } }))
+      .map((t) => ({
+        ...t,
+        location_name: t.location_name || (t.target_lat ? null : 'Ram Mandir Chowk, Ward 5'),
+        assignee: { name: db.users.find((u) => u.id === t.assigned_to)?.name ?? 'Unknown' }
+      }))
     return delay(sortDesc(rows, 'created_at'))
   },
 
@@ -263,6 +270,9 @@ export const localApi = {
       assigned_to,
       ward_no,
       status,
+      location_name: location_name || null,
+      target_lat: target_lat ?? null,
+      target_lng: target_lng ?? null,
       created_at: new Date().toISOString(),
     })
     save(db)

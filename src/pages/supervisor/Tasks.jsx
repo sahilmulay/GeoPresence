@@ -8,7 +8,7 @@ import { api } from '../../lib/api'
 import { useWardData } from '../../lib/wardData'
 import { getPosition } from '../../lib/device'
 import { fmtDate } from '../../lib/format'
-import { Badge, Button, Card, Empty, ErrorNote, Field, PageLoader, SectionTitle, inputCls } from '../../components/ui'
+import { Badge, Button, Card, Empty, ErrorNote, Field, LocationLabel, PageLoader, SectionTitle, inputCls } from '../../components/ui'
 
 // Fix default Leaflet icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -205,9 +205,16 @@ export default function SupervisorTasks() {
                 <Badge value={tk.status} />
               </div>
               {tk.description && <p className="mt-1 text-sm text-gray-600">{tk.description}</p>}
-              {tk.location_name && (
-                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {tk.location_name}</p>
-              )}
+              <p className="mt-1 text-xs font-semibold text-blue-700 flex items-center gap-1">
+                <span>📍</span>
+                <span>
+                  {tk.location_name
+                    ? tk.location_name
+                    : tk.target_lat && tk.target_lng
+                      ? <LocationLabel lat={tk.target_lat} lng={tk.target_lng} fallback={`Ward ${tk.ward_no || profile.ward_no || 5}`} />
+                      : `Ram Mandir Chowk, Ward ${tk.ward_no || profile.ward_no || 5}`}
+                </span>
+              </p>
               <p className="mt-2 text-xs text-gray-500">
                 {t('tasks.assigned_to')} <span className="font-semibold text-gray-700">{tk.assignee?.name}</span> · {fmtDate(tk.created_at)}
               </p>

@@ -102,13 +102,26 @@ export const supabaseApi = {
     if (employeeId) q = q.eq('assigned_to', employeeId)
     const { data, error } = await q
     fail(error)
-    return data
+    return (data ?? []).map((t) => ({
+      ...t,
+      location_name: t.location_name || (t.target_lat ? null : 'Ram Mandir Chowk, Ward 5'),
+    }))
   },
 
   async createTask({ title, description, assigned_by, assigned_to, ward_no, status, location_name, target_lat, target_lng }) {
     const { error } = await supabase
       .from('tasks')
-      .insert({ title, description, assigned_by, assigned_to, ward_no, status })
+      .insert({
+        title,
+        description,
+        assigned_by,
+        assigned_to,
+        ward_no,
+        status,
+        location_name: location_name || null,
+        target_lat: target_lat ?? null,
+        target_lng: target_lng ?? null,
+      })
     fail(error)
   },
 

@@ -8,7 +8,7 @@ import { getDistance, GEOFENCE_RADIUS_M } from '../../lib/geo'
 import { isToday, fmtTime } from '../../lib/format'
 import AttendanceCapture from '../../components/AttendanceCapture'
 import VoiceAssistant from '../../components/VoiceAssistant'
-import { Badge, Button, Card, Empty, ErrorNote, PageLoader, SectionTitle } from '../../components/ui'
+import { Badge, Button, Card, Empty, ErrorNote, LocationLabel, PageLoader, SectionTitle } from '../../components/ui'
 
 export default function EmployeeDashboard() {
   const { t } = useLanguage()
@@ -109,9 +109,16 @@ export default function EmployeeDashboard() {
                 <Badge value={task.status} />
               </div>
               {task.description && <p className="mt-1 text-sm text-gray-600">{task.description}</p>}
-              {task.location_name && (
-                <p className="mt-1 text-xs font-semibold text-blue-700">📍 {task.location_name}</p>
-              )}
+              <p className="mt-1 text-xs font-semibold text-blue-700 flex items-center gap-1">
+                <span>📍</span>
+                <span>
+                  {task.location_name
+                    ? task.location_name
+                    : task.target_lat && task.target_lng
+                      ? <LocationLabel lat={task.target_lat} lng={task.target_lng} fallback={`Ward ${task.ward_no || profile.ward_no || 5}`} />
+                      : `Ram Mandir Chowk, Ward ${task.ward_no || profile.ward_no || 5}`}
+                </span>
+              </p>
               {task.status === 'PENDING' && latest?.check_type !== 'CHECKIN' && (
                 <p className="mt-1 text-xs font-semibold text-red-600">{t('emp_dash.checkin_first')}</p>
               )}
