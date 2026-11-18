@@ -62,10 +62,22 @@ export default function Login() {
         <Field label="Email">
           <input className={inputCls} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </Field>
-        <Field label="{t('auth.password')}">
+        <Field label={t('auth.password')}>
           <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
         </Field>
         <ErrorNote>{error}</ErrorNote>
+        {error && (error.includes('Supabase') || error.includes('fetch')) && (
+          <button
+            type="button"
+            onClick={() => {
+              setError('')
+              submit({ email: 'sahil@geopresence.demo', password: DEMO_PASSWORD })
+            }}
+            className="w-full rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            ⚡ Continue in Local Demo Mode (Sahil Mulay)
+          </button>
+        )}
         <Button type="submit" className="w-full" loading={busy}>
           Login
         </Button>

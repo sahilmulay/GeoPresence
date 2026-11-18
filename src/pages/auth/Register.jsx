@@ -35,7 +35,7 @@ export default function Register() {
 
   return (
     <AuthShell title="Create account" subtitle="Choose your role to get started">
-      <div className="mb-4 grid grid-cols-2 gap-3" role="radiogroup" aria-label="{t('auth.role')}">
+      <div className="mb-4 grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('auth.role')}>
         {[
           ['employee', 'Employee', 'Field worker'],
           ['supervisor', 'Supervisor', 'Ward in-charge'],
@@ -65,16 +65,16 @@ export default function Register() {
         </div>
       ) : (
         <form className="space-y-4" onSubmit={submit}>
-          <Field label="{t('auth.name')}">
+          <Field label={t('auth.name')}>
             <input className={inputCls} required value={form.name} onChange={set('name')} placeholder="e.g. Sahil Mulay" autoComplete="name" />
           </Field>
           <Field label="Email">
             <input className={inputCls} type="email" required value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" />
           </Field>
-          <Field label="{t('auth.password')}">
+          <Field label={t('auth.password')}>
             <input className={inputCls} type="password" required minLength={6} value={form.password} onChange={set('password')} placeholder="At least 6 characters" autoComplete="new-password" />
           </Field>
-          <Field label="{t('common.ward')}">
+          <Field label={t('common.ward')}>
             <input className={inputCls} type="number" inputMode="numeric" min="1" required value={form.ward_no} onChange={set('ward_no')} placeholder="e.g. 5" />
           </Field>
           <ErrorNote>{error}</ErrorNote>
