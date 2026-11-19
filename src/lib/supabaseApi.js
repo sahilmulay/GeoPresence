@@ -28,9 +28,40 @@ export const supabaseApi = {
 
   // ---------- auth ----------
   subscribe(cb) {
-    supabase.auth.getSession().then(({ data }) => cb(data.session?.user?.id ?? null)).catch((err) => { console.error(err); cb(null); })
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => cb(session?.user?.id ?? null))
-    return () => data.subscription.unsubscribe()
+    let resolved = false
+    const safeCb = (val) => {
+      if (!resolved) {
+        resolved = true
+        cb(val)
+      }
+    }
+    // Safety fallback: if Supabase network is unreachable or hanging, unblock the UI within 2.5s
+    const timeout = setTimeout(() => {
+      safeCb(null)
+    }, 2500)
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        clearTimeout(timeout)
+        safeCb(data?.session?.user?.id ?? null)
+      })
+      .catch((err) => {
+        clearTimeout(timeout)
+        console.error('[GeoPresence] getSession error:', err)
+        safeCb(null)
+      })
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      clearTimeout(timeout)
+      resolved = true
+      cb(session?.user?.id ?? null)
+    })
+
+    return () => {
+      clearTimeout(timeout)
+      data?.subscription?.unsubscribe()
+    }
   },
 
   async signUp({ role, name, email, password, ward_no }) {

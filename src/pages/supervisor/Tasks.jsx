@@ -19,8 +19,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-// Pune coordinates as default center
-const DEFAULT_CENTER = [18.5204, 73.8567]
+// Kolhapur coordinates as default fallback center (GCOE Kolhapur)
+const DEFAULT_CENTER = [16.7050, 74.2433]
 
 function LocationPicker({ position, setPosition, radius = 50 }) {
   const map = useMapEvents({
@@ -56,6 +56,28 @@ export default function SupervisorTasks() {
   const [targetPos, setTargetPos] = useState(null)
   const [busy, setBusy] = useState(false)
   const [fetchingLoc, setFetchingLoc] = useState(false)
+
+  // Automatically detect user's current GPS location on page load
+  useEffect(() => {
+    let active = true
+    setFetchingLoc(true)
+    getPosition()
+      .then((pos) => {
+        if (!active) return
+        setTargetPos([pos.latitude, pos.longitude])
+      })
+      .catch((err) => {
+        // Log info quietly on mount so user isn't interrupted if permissions are pending
+        console.info('[GeoPresence] Auto-location note:', err.message)
+      })
+      .finally(() => {
+        if (active) setFetchingLoc(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleUseMyLocation = async () => {
     setFetchingLoc(true)
@@ -147,8 +169,11 @@ export default function SupervisorTasks() {
                 type="button" 
                 onClick={handleUseMyLocation} 
                 disabled={fetchingLoc}
-                className="text-xs font-semibold text-blue-600 hover:underline disabled:text-gray-400"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline disabled:text-gray-400"
               >
+                {fetchingLoc && (
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                )}
                 {fetchingLoc ? t('tasks.fetching') : t('tasks.use_loc')}
               </button>
             </div>
@@ -170,12 +195,25 @@ export default function SupervisorTasks() {
               </Field>
             </div>
             <div className="h-48 w-full overflow-hidden rounded-md border border-gray-300">
-              <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: '100%', width: '100%' }}>
+              <MapContainer center={targetPos || DEFAULT_CENTER} zoom={14} style={{ height: '100%', width: '100%' }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <LocationPicker position={targetPos} setPosition={setTargetPos} radius={form.radius_m} />
               </MapContainer>
             </div>
-            {targetPos && <p className="text-xs text-green-700">{t('tasks.loc_selected')} ({form.radius_m || 50}m radius set)</p>}
+            {targetPos && (
+              <div className="flex items-center justify-between text-xs mt-1">
+                <p className="text-green-700 font-medium">
+                  ✓ {t('tasks.loc_selected')} ({form.radius_m || 50}m radius set)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTargetPos(null)}
+                  className="text-gray-500 hover:text-red-600 underline font-medium"
+                >
+                  Clear location
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

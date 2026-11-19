@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-const DEFAULT_PUNE = [18.5204, 73.8567]
+const DEFAULT_CENTER = [16.7050, 74.2433] // Kolhapur fallback (GCOE Kolhapur)
 
 function isValidLatLng(lat, lng) {
   if (lat == null || lng == null) return false
@@ -315,7 +315,7 @@ export default function SupervisorMap() {
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
         <MapErrorBoundary>
           <MapContainer
-            center={taskHasLocation ? [taskLat, taskLng] : DEFAULT_PUNE}
+            center={taskHasLocation ? [taskLat, taskLng] : DEFAULT_CENTER}
             zoom={16}
             scrollWheelZoom={true}
             style={{ height: '62vh', minHeight: '400px', width: '100%' }}

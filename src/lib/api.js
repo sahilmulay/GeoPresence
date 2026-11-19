@@ -4,36 +4,23 @@ import { localApi } from './localApi'
 let activeBackend = isSupabaseConfigured ? supabaseApi : localApi
 export let isDemoMode = !isSupabaseConfigured
 
-const clientSubscribers = new Set()
-let unsubscribeBackend = null
-
-function setupBackendSubscription() {
-  if (unsubscribeBackend) {
-    try {
-      unsubscribeBackend()
-    } catch {}
-  }
-
-  unsubscribeBackend = activeBackend.subscribe((userId) => {
-    clientSubscribers.forEach((cb) => {
-      try {
-        cb(userId)
-      } catch (err) {
-        console.error('[GeoPresence] Auth callback error:', err)
-      }
-    })
-  })
-}
-
-// Initialize backend subscription
-setupBackendSubscription()
+const activeSubscribers = new Set()
 
 export function switchToLocalApi() {
   if (activeBackend !== localApi) {
     console.info('[GeoPresence] Switching active API backend to localApi (demo mode)')
     activeBackend = localApi
     isDemoMode = true
-    setupBackendSubscription()
+    try {
+      const db = JSON.parse(localStorage.getItem('geopresence_demo_v1') || '{}')
+      activeSubscribers.forEach((cb) => {
+        try {
+          cb(db.session ?? null)
+        } catch (e) {
+          console.error(e)
+        }
+      })
+    } catch {}
   }
 }
 
@@ -48,17 +35,18 @@ export const api = new Proxy(
 
       if (prop === 'subscribe') {
         return (cb) => {
-          clientSubscribers.add(cb)
-          // For demo mode or immediate session check
-          if (activeBackend.mode === 'demo') {
+          activeSubscribers.add(cb)
+          const unsubscribe = activeBackend.subscribe((id) => {
             try {
-              const db = JSON.parse(localStorage.getItem('geopresence_demo_v1') || '{}')
-              cb(db.session ?? null)
-            } catch {
-              cb(null)
+              cb(id)
+            } catch (err) {
+              console.error('[GeoPresence] Subscriber error:', err)
             }
+          })
+          return () => {
+            activeSubscribers.delete(cb)
+            if (typeof unsubscribe === 'function') unsubscribe()
           }
-          return () => clientSubscribers.delete(cb)
         }
       }
 
