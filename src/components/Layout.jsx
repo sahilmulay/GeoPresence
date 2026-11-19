@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../context/LanguageContext'
 import { useAuth } from '../context/AuthContext'
-import { isDemoMode, localApi } from '../lib/api'
+import { useBackendMode, api, isSupabaseConfigured, localApi } from '../lib/api'
 
 const ICONS = {
   home: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10',
@@ -35,6 +35,7 @@ const NAV = {
 export default function Layout() {
   const { profile, role, signOut } = useAuth()
   const { lang, setLang, t } = useLanguage()
+  const { isDemoMode } = useBackendMode()
   const navigate = useNavigate()
   const items = NAV[role] ?? []
 
@@ -55,17 +56,20 @@ export default function Layout() {
   return (
     <div className="min-h-dvh bg-[#F5F5F5]">
       {isDemoMode && (
-        <div className="bg-amber-50 px-3 py-1.5 text-center text-xs text-amber-800">
-          Demo mode: data is stored in this browser.{' '}
-          <button
-            className="font-semibold underline"
-            onClick={async () => {
-              await localApi.resetDemo()
-              navigate('/auth/login', { replace: true })
-            }}
-          >
-            Reset demo data
-          </button>
+        <div className="bg-amber-500 text-white px-3 py-2 text-center text-xs font-medium flex items-center justify-center gap-2">
+          <span>⚠️ <strong>Local Demo Mode:</strong> Tasks and data are saved only on this device.</span>
+          {isSupabaseConfigured && (
+            <button
+              className="bg-white text-amber-900 rounded px-2.5 py-0.5 font-bold hover:bg-amber-100 transition-colors shadow-xs"
+              onClick={async () => {
+                api.switchToSupabaseApi?.()
+                await signOut()
+                navigate('/auth/login', { replace: true })
+              }}
+            >
+              Connect to Live Cloud
+            </button>
+          )}
         </div>
       )}
 
@@ -74,7 +78,18 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
             <div className="leading-tight">
-              <p className="font-bold text-gray-900">{t('app.title')}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-gray-900">{t('app.title')}</p>
+                {isDemoMode ? (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                    Local Demo
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                    ● Cloud Live
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500">
                 {role === 'supervisor' ? t('role.supervisor') : t('role.employee')} · {t('common.ward')} {profile?.ward_no}
               </p>

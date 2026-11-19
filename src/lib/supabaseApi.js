@@ -35,10 +35,10 @@ export const supabaseApi = {
         cb(val)
       }
     }
-    // Safety fallback: if Supabase network is unreachable or hanging, unblock the UI within 2.5s
+    // Safety fallback: if Supabase network is unreachable or hanging, unblock the UI within 8s
     const timeout = setTimeout(() => {
       safeCb(null)
-    }, 2500)
+    }, 8000)
 
     supabase.auth
       .getSession()

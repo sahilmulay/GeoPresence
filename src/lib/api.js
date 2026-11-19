@@ -1,16 +1,43 @@
 import { isSupabaseConfigured, supabaseApi } from './supabaseApi'
 import { localApi } from './localApi'
+import { useState, useEffect } from 'react'
 
 let activeBackend = isSupabaseConfigured ? supabaseApi : localApi
-export let isDemoMode = !isSupabaseConfigured
+export let isDemoMode = activeBackend === localApi
 
 const activeSubscribers = new Set()
+const modeListeners = new Set()
+
+function broadcastMode() {
+  isDemoMode = activeBackend === localApi
+  modeListeners.forEach((cb) => {
+    try {
+      cb({ isDemoMode, mode: activeBackend.mode })
+    } catch (e) {
+      console.error('[GeoPresence] Mode listener error:', e)
+    }
+  })
+}
+
+export function useBackendMode() {
+  const [modeState, setModeState] = useState({
+    isDemoMode: activeBackend === localApi,
+    mode: activeBackend.mode,
+  })
+
+  useEffect(() => {
+    modeListeners.add(setModeState)
+    return () => modeListeners.delete(setModeState)
+  }, [])
+
+  return modeState
+}
 
 export function switchToLocalApi() {
   if (activeBackend !== localApi) {
     console.info('[GeoPresence] Switching active API backend to localApi (demo mode)')
     activeBackend = localApi
-    isDemoMode = true
+    broadcastMode()
     try {
       const db = JSON.parse(localStorage.getItem('geopresence_demo_v1') || '{}')
       activeSubscribers.forEach((cb) => {
@@ -24,6 +51,26 @@ export function switchToLocalApi() {
   }
 }
 
+export function switchToSupabaseApi() {
+  if (isSupabaseConfigured && activeBackend !== supabaseApi) {
+    console.info('[GeoPresence] Switching active API backend to supabaseApi (live cloud mode)')
+    activeBackend = supabaseApi
+    broadcastMode()
+    try {
+      localStorage.removeItem('geopresence_demo_v1')
+    } catch {}
+    supabaseApi.subscribe((id) => {
+      activeSubscribers.forEach((cb) => {
+        try {
+          cb(id)
+        } catch (e) {
+          console.error(e)
+        }
+      })
+    })
+  }
+}
+
 export { localApi, isSupabaseConfigured }
 
 export const api = new Proxy(
@@ -32,6 +79,7 @@ export const api = new Proxy(
     get(target, prop) {
       if (prop === 'mode') return activeBackend.mode
       if (prop === 'switchToLocalApi') return switchToLocalApi
+      if (prop === 'switchToSupabaseApi') return switchToSupabaseApi
 
       if (prop === 'subscribe') {
         return (cb) => {
@@ -62,22 +110,6 @@ export const api = new Proxy(
       const originalMethod = activeBackend[prop]
       if (typeof originalMethod === 'function') {
         return async (...args) => {
-          // Special quick path for demo users if Supabase might be unreachable
-          if (prop === 'signIn' && args[0]?.email?.endsWith('@geopresence.demo') && activeBackend === supabaseApi) {
-            try {
-              return await Promise.race([
-                originalMethod.apply(activeBackend, args),
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('Failed to fetch')), 2000)
-                ),
-              ])
-            } catch (err) {
-              console.warn('[GeoPresence] Supabase sign-in timed out or unreachable for demo user. Falling back to local demo mode.')
-              switchToLocalApi()
-              return await localApi.signIn(...args)
-            }
-          }
-
           try {
             return await originalMethod.apply(activeBackend, args)
           } catch (err) {
@@ -90,26 +122,11 @@ export const api = new Proxy(
 
             if (isNetworkError && activeBackend === supabaseApi) {
               console.warn(`[GeoPresence] Supabase network error on ${prop}:`, err.message)
-
-              // If logging in with demo creds, fall back to localApi
-              if (prop === 'signIn' && args[0]?.email?.endsWith('@geopresence.demo')) {
-                console.info('[GeoPresence] Demo account detected. Automatically falling back to local demo mode.')
-                switchToLocalApi()
-                return await localApi.signIn(...args)
-              }
-
               if (prop === 'signIn') {
                 throw new Error(
                   'Cannot connect to Supabase database (Failed to fetch). ' +
-                  'The project may be paused, deleted, or Vercel environment variables need to be updated. ' +
-                  'You can use the Quick Demo Login buttons below to access the application.'
+                  'Please check your internet connection or verify your Supabase project is active.'
                 )
-              }
-
-              // For other operations, switch to localApi and retry
-              switchToLocalApi()
-              if (typeof localApi[prop] === 'function') {
-                return await localApi[prop](...args)
               }
             }
             throw err

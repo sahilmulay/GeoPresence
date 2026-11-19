@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useLanguage } from '../../context/LanguageContext'
 import { useAuth } from '../../context/AuthContext'
+import { api, isSupabaseConfigured } from '../../lib/api'
 import { Button, Card, ErrorNote, Field, inputCls } from '../../components/ui'
 
 export const DEMO_ACCOUNTS = [
@@ -38,6 +39,13 @@ export default function Login() {
   const { t } = useLanguage()
   const [busy, setBusy] = useState(false)
 
+  // Ensure login screen always defaults to Live Cloud backend
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      api.switchToSupabaseApi?.()
+    }
+  }, [])
+
   const submit = async (creds) => {
     setError('')
     setBusy(true)
@@ -71,6 +79,7 @@ export default function Login() {
             type="button"
             onClick={() => {
               setError('')
+              api.switchToLocalApi?.()
               submit({ email: 'sahil@geopresence.demo', password: DEMO_PASSWORD })
             }}
             className="w-full rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
